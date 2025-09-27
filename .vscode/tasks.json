@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Emulator",
+      "type": "shell",
+      "command": "emulator -avd Resizable_Experimental",
+      "problemMatcher": [],
+      "isBackground": true
+    },
+    {
+      "label": "Build & Install App",
+      "type": "shell",
+      "command": "./gradlew installDebug",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run App",
+      "type": "shell",
+      "command": "adb shell am start -n kh.edu.rupp.fe.ite.pinboard.MainActivity",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Android App",
+      "dependsOn": ["Start Emulator", "Build & Install App", "Run App"],
+      "dependsOrder": "sequence"
+    }
+  ]
+}
