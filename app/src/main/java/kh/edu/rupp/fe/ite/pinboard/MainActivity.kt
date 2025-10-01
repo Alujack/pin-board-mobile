@@ -4,11 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import kh.edu.rupp.fe.ite.pinboard.ui.theme.PinBoardTheme
@@ -19,11 +21,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PinBoardTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Team at ITE",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                val systemUiController = rememberSystemUiController()
+                val darkIcons = materialTheme.colorScheme.isLight
+                SideEffect {
+                    systemUiController.setSystemBarsColor(
+                        color = color.Transparent,
+                        darkIcons = darkIcons
+                    )56
                 }
             }
         }
@@ -32,10 +36,21 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+    Column {
+        Text(
+            text = "Hello $name!",
+            modifier = modifier
+        )
+        Text(
+            text = "Hello $name!",
+            modifier = modifier
+        )
+        Text(
+            text = "Hello $name!",
+            modifier = modifier
+        )
+
+    }
 }
 
 @Preview(showBackground = true)
