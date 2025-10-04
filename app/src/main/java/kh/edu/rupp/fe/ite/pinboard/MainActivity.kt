@@ -3,60 +3,44 @@ package kh.edu.rupp.fe.ite.pinboard
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import kh.edu.rupp.fe.ite.pinboard.app.navigation.AppNavigation
 import kh.edu.rupp.fe.ite.pinboard.ui.theme.PinBoardTheme
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.usecase.GetAuthStateUseCase
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
             PinBoardTheme {
-                val systemUiController = rememberSystemUiController()
-                val darkIcons = materialTheme.colorScheme.isLight
-                SideEffect {
-                    systemUiController.setSystemBarsColor(
-                        color = color.Transparent,
-                        darkIcons = darkIcons
-                    )56
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val viewModel: MainViewModel = hiltViewModel()
+                    val isAuthenticated by viewModel.isAuthenticated.collectAsState(initial = true)
+                    AppNavigation(isAuthenticated = isAuthenticated)
                 }
             }
         }
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Column {
-        Text(
-            text = "Hello $name!",
-            modifier = modifier
-        )
-        Text(
-            text = "Hello $name!",
-            modifier = modifier
-        )
-        Text(
-            text = "Hello $name!",
-            modifier = modifier
-        )
 
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    PinBoardTheme {
-        Greeting("Team at ITE")
-    }
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    getAuthStateUseCase: GetAuthStateUseCase
+) : ViewModel() {
+    val isAuthenticated = getAuthStateUseCase()
 }
