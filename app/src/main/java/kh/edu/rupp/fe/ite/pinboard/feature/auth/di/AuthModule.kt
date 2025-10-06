@@ -1,16 +1,21 @@
+// feature/auth/di/AuthModule.kt
 package kh.edu.rupp.fe.ite.pinboard.feature.auth.di
 
-import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
-import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.repository.AuthRepositoryImpl
-import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.repository.AuthRepository
-import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.usecase.LoginUseCase
-import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.usecase.RegisterUseCase
+import android.content.Context
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.repository.AuthRepository
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.repository.AuthRepositoryImpl
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -19,23 +24,62 @@ object AuthModule {
 
     @Provides
     @Singleton
-    fun provideAuthApi(): AuthApi {
-        return Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:3000/") // For Android Emulator
-            .addConverterFactory(GsonConverterFactory.create())
+    fun provideOkHttpClient(tokenManager: TokenManager): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val newRequest = request.newBuilder()
+
+                // Add token to requests if available
+                kotlinx.coroutines.runBlocking {
+                    tokenManager.getToken()?.let { token ->
+                        newRequest.addHeader("Authorization", "Bearer $token")
+                    }
+                }
+
+                chain.proceed(newRequest.build())
+            }
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
-            .create(AuthApi::class.java)
     }
 
     @Provides
     @Singleton
-    fun provideAuthRepository(api: AuthApi): AuthRepository = AuthRepositoryImpl(api)
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("http://10.0.2.2:3000/") // Replace with your actual base URL
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
 
     @Provides
     @Singleton
-    fun provideLoginUseCase(repo: AuthRepository) = LoginUseCase(repo)
+    fun provideAuthApi(retrofit: Retrofit): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
 
     @Provides
     @Singleton
-    fun provideRegisterUseCase(repo: AuthRepository) = RegisterUseCase(repo)
+    fun provideTokenManager(
+        @ApplicationContext context: Context
+    ): TokenManager {
+        return TokenManager(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(
+        authApi: AuthApi,
+        tokenManager: TokenManager
+    ): AuthRepository {
+        return AuthRepositoryImpl(authApi, tokenManager)
+    }
 }
