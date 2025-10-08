@@ -14,4 +14,9 @@ interface AuthRepository {
     suspend fun saveToken(token: String)
     suspend fun getToken(): String?
     suspend fun clearToken()
+    
+    suspend fun saveSessionId(sessionId: String)
+    suspend fun getSessionId(): String?
+    suspend fun clearSessionId()
+    suspend fun clearAllTokens()
 }

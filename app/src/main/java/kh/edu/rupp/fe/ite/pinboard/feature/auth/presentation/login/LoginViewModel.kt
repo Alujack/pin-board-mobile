@@ -43,6 +43,11 @@ class LoginViewModel @Inject constructor(
             return
         }
 
+        if (currentState.password.length < 6) {
+            _state.value = currentState.copy(errorMessage = "Password must be at least 6 characters")
+            return
+        }
+
         viewModelScope.launch {
             _state.value = currentState.copy(isLoading = true, errorMessage = null)
 
