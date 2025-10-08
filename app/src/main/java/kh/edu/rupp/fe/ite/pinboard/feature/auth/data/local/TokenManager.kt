@@ -1,24 +1,23 @@
+// TokenManager.kt
 package kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local
 
 import android.content.Context
-import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
+import kotlinx.coroutines.runBlocking
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "auth_prefs")
+private val Context.dataStore by preferencesDataStore("auth_prefs")
 
-@Singleton
-class TokenManager @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    private val TOKEN_KEY = stringPreferencesKey("auth_token")
+class TokenManager(private val context: Context) {
+
+    companion object {
+        private val TOKEN_KEY = stringPreferencesKey("jwt_token")
+        private val SESSION_ID_KEY = stringPreferencesKey("session_id")
+    }
 
     suspend fun saveToken(token: String) {
         context.dataStore.edit { prefs ->
@@ -27,14 +26,45 @@ class TokenManager @Inject constructor(
     }
 
     suspend fun getToken(): String? {
-        return context.dataStore.data.map { prefs ->
-            prefs[TOKEN_KEY]
-        }.first()
+        val prefs = context.dataStore.data.map { it[TOKEN_KEY] }.first()
+        return prefs
+    }
+
+    suspend fun saveSessionId(sessionId: String) {
+        context.dataStore.edit { prefs ->
+            prefs[SESSION_ID_KEY] = sessionId
+        }
+    }
+
+    suspend fun getSessionId(): String? {
+        val prefs = context.dataStore.data.map { it[SESSION_ID_KEY] }.first()
+        return prefs
     }
 
     suspend fun clearToken() {
         context.dataStore.edit { prefs ->
             prefs.remove(TOKEN_KEY)
         }
+    }
+
+    suspend fun clearSessionId() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(SESSION_ID_KEY)
+        }
+    }
+
+    suspend fun clearAllTokens() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(TOKEN_KEY)
+            prefs.remove(SESSION_ID_KEY)
+        }
+    }
+
+    fun getTokenSync(): String? {
+        return runBlocking { getToken() }
+    }
+
+    fun getSessionIdSync(): String? {
+        return runBlocking { getSessionId() }
     }
 }
