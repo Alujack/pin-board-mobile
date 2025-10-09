@@ -3,6 +3,13 @@ package kh.edu.rupp.fe.ite.pinboard.app.navigation
 
 import android.util.Log
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Message
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,41 +101,105 @@ fun AuthNavGraph(
 }
 
 /**
- * Simple but nicer Home screen with logout button
+ * Pinterest-style Home screen scaffold with top app bar and bottom tabs
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Welcome Home 👋",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
+    val tabs = remember {
+        listOf(
+            BottomTab.Home,
+            BottomTab.Search,
+            BottomTab.Create,
+            BottomTab.Messages,
+            BottomTab.Profile
+        )
+    }
+    var selectedTab by remember { mutableStateOf<BottomTab>(BottomTab.Home) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Pinterest",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
+                actions = {
+                    TextButton(onClick = onLogout) {
+                        Text(text = "Logout")
+                    }
+                }
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "You are now logged in.",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
-                onClick = onLogout,
-                modifier = Modifier.fillMaxWidth(0.6f)
-            ) {
-                Text(text = "Logout")
+        },
+        bottomBar = {
+            NavigationBar {
+                tabs.forEach { tab ->
+                    NavigationBarItem(
+                        selected = selectedTab == tab,
+                        onClick = { selectedTab = tab },
+                        icon = {
+                            when (tab) {
+                                BottomTab.Home -> Icon(Icons.Outlined.Home, contentDescription = "Home")
+                                BottomTab.Search -> Icon(Icons.Outlined.Search, contentDescription = "Search")
+                                BottomTab.Create -> Icon(Icons.Filled.Add, contentDescription = "Create")
+                                BottomTab.Messages -> Icon(Icons.Outlined.Notifications, contentDescription = "Notification")
+                                BottomTab.Profile -> Icon(Icons.Outlined.Person, contentDescription = "Profile")
+                            }
+                        },
+                        label = { Text(tab.label) }
+                    )
+                }
             }
         }
+    ) { innerPadding ->
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            when (selectedTab) {
+                BottomTab.Home -> TabPlaceholderContent("Home Feed")
+                BottomTab.Search -> TabPlaceholderContent("Search")
+                BottomTab.Create -> TabPlaceholderContent("Create Pin")
+                BottomTab.Messages -> TabPlaceholderContent("Messages")
+                BottomTab.Profile -> TabPlaceholderContent("Profile")
+            }
+        }
+    }
+}
+
+private enum class BottomTab(val label: String) {
+    Home("Home"),
+    Search("Search"),
+    Create("Create"),
+    Messages("Messages"),
+    Profile("Profile")
+}
+
+@Composable
+private fun TabPlaceholderContent(title: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = title,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Simple clean layout",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+        )
     }
 }
