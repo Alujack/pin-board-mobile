@@ -28,7 +28,9 @@ class NetworkClient @Inject constructor(
 
     private fun createOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            // Avoid logging large multipart bodies to prevent OOM
+            level = HttpLoggingInterceptor.Level.HEADERS
+            redactHeader("Authorization")
         }
 
         return OkHttpClient.Builder()
