@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,11 +26,13 @@ import kotlinx.coroutines.launch
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.login.LoginScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.register.RegisterScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.create.CreatePinScreen
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object Home : Screen("home")
+    object CreatePin : Screen("create_pin")
 }
 
 /**
@@ -94,6 +97,20 @@ fun AuthNavGraph(
                             popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     }
+                },
+                onNavigateToCreatePin = {
+                    navController.navigate(Screen.CreatePin.route)
+                }
+            )
+        }
+
+        composable(Screen.CreatePin.route) {
+            CreatePinScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onPinCreated = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -106,18 +123,22 @@ fun AuthNavGraph(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToCreatePin: () -> Unit
 ) {
     val tabs = remember {
         listOf(
             BottomTab.Home,
             BottomTab.Search,
-            BottomTab.Create,
             BottomTab.Messages,
             BottomTab.Profile
         )
     }
     var selectedTab by remember { mutableStateOf<BottomTab>(BottomTab.Home) }
+
+    // Colors for active/inactive icons
+    val activeColor = Color(0xFFE60023)
+    val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
 
     Scaffold(
         topBar = {
@@ -136,24 +157,57 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            NavigationBar {
-                tabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = selectedTab == tab,
-                        onClick = { selectedTab = tab },
-                        icon = {
-                            when (tab) {
-                                BottomTab.Home -> Icon(Icons.Outlined.Home, contentDescription = "Home")
-                                BottomTab.Search -> Icon(Icons.Outlined.Search, contentDescription = "Search")
-                                BottomTab.Create -> Icon(Icons.Filled.Add, contentDescription = "Create")
-                                BottomTab.Messages -> Icon(Icons.Outlined.Notifications, contentDescription = "Notification")
-                                BottomTab.Profile -> Icon(Icons.Outlined.Person, contentDescription = "Profile")
-                            }
-                        },
-                        label = { Text(tab.label) }
-                    )
+            BottomAppBar(
+                containerColor = Color.White,
+                tonalElevation = 0.dp,
+                actions = {
+                    IconButton(onClick = { selectedTab = BottomTab.Home }) {
+                        Icon(
+                            Icons.Outlined.Home,
+                            contentDescription = "Home",
+                            tint = if (selectedTab == BottomTab.Home) activeColor else inactiveColor,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = { selectedTab = BottomTab.Search }) {
+                        Icon(
+                            Icons.Outlined.Search,
+                            contentDescription = "Search",
+                            tint = if (selectedTab == BottomTab.Search) activeColor else inactiveColor,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = { selectedTab = BottomTab.Messages }) {
+                        Icon(
+                            Icons.Outlined.Notifications,
+                            contentDescription = "Notification",
+                            tint = if (selectedTab == BottomTab.Messages) activeColor else inactiveColor,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    IconButton(onClick = { selectedTab = BottomTab.Profile }) {
+                        Icon(
+                            Icons.Outlined.Person,
+                            contentDescription = "Profile",
+                            tint = if (selectedTab == BottomTab.Profile) activeColor else inactiveColor,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                },
+                floatingActionButton = {
+                    FloatingActionButton(
+                        onClick = onNavigateToCreatePin,
+                        containerColor = activeColor,
+                        contentColor = Color.White,
+                        modifier = Modifier.offset(y = (-1).dp)
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Create", modifier = Modifier.size(28.dp))
+                    }
                 }
-            }
+            )
         }
     ) { innerPadding ->
         Surface(
@@ -165,7 +219,6 @@ fun HomeScreen(
             when (selectedTab) {
                 BottomTab.Home -> TabPlaceholderContent("Home Feed")
                 BottomTab.Search -> TabPlaceholderContent("Search")
-                BottomTab.Create -> TabPlaceholderContent("Create Pin")
                 BottomTab.Messages -> TabPlaceholderContent("Messages")
                 BottomTab.Profile -> TabPlaceholderContent("Profile")
             }
@@ -176,7 +229,6 @@ fun HomeScreen(
 private enum class BottomTab(val label: String) {
     Home("Home"),
     Search("Search"),
-    Create("Create"),
     Messages("Messages"),
     Profile("Profile")
 }
@@ -203,3 +255,5 @@ private fun TabPlaceholderContent(title: String) {
         )
     }
 }
+
+ 
