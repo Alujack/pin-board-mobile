@@ -18,4 +18,12 @@ interface PinRepository {
         link: String?,
         media: List<File>
     ): PinResult<Pin>
+    
+    // Profile-related methods
+    suspend fun searchPins(query: String): PinResult<List<Pin>>
+    suspend fun getCreatedPins(): PinResult<List<Pin>>
+    suspend fun getSavedPins(): PinResult<List<Pin>>
+    suspend fun savePin(pinId: String): PinResult<Unit>
+    suspend fun unsavePin(pinId: String): PinResult<Unit>
+    suspend fun downloadPin(pinId: String): PinResult<Unit>
 }
