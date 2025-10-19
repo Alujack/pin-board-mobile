@@ -27,12 +27,16 @@ import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.login.LoginScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.register.RegisterScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.create.CreatePinScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile.ProfileScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.search.SearchScreen
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object Home : Screen("home")
     object CreatePin : Screen("create_pin")
+    object Profile : Screen("profile")
+    object Search : Screen("search")
 }
 
 /**
@@ -100,6 +104,12 @@ fun AuthNavGraph(
                 },
                 onNavigateToCreatePin = {
                     navController.navigate(Screen.CreatePin.route)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
+                },
+                onNavigateToSearch = {
+                    navController.navigate(Screen.Search.route)
                 }
             )
         }
@@ -114,6 +124,22 @@ fun AuthNavGraph(
                 }
             )
         }
+
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Search.route) {
+            SearchScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
 
@@ -124,7 +150,9 @@ fun AuthNavGraph(
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit,
-    onNavigateToCreatePin: () -> Unit
+    onNavigateToCreatePin: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToSearch: () -> Unit
 ) {
     val tabs = remember {
         listOf(
@@ -170,7 +198,10 @@ fun HomeScreen(
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { selectedTab = BottomTab.Search }) {
+                    IconButton(onClick = { 
+                        selectedTab = BottomTab.Search
+                        onNavigateToSearch()
+                    }) {
                         Icon(
                             Icons.Outlined.Search,
                             contentDescription = "Search",
@@ -188,7 +219,10 @@ fun HomeScreen(
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { selectedTab = BottomTab.Profile }) {
+                    IconButton(onClick = { 
+                        selectedTab = BottomTab.Profile
+                        onNavigateToProfile()
+                    }) {
                         Icon(
                             Icons.Outlined.Person,
                             contentDescription = "Profile",
