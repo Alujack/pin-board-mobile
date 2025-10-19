@@ -81,7 +81,10 @@ fun MediaSelectionSection(
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(selectedFiles) { file ->
+                        items(
+                            items = selectedFiles,
+                            key = { it.absolutePath }
+                        ) { file ->
                             MediaPreviewItem(
                                 file = file,
                                 onRemove = { onRemoveFile(file) }

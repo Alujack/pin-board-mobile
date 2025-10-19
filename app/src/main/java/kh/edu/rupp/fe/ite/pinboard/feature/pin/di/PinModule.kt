@@ -7,7 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.PinApi
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.repository.PinRepositoryImpl
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
-import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.NetworkClient
+import kh.edu.rupp.fe.ite.pinboard.core.network.NetworkClient
 import javax.inject.Singleton
 
 @Module
