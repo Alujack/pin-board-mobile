@@ -93,4 +93,112 @@ class PinRepositoryImpl @Inject constructor(
             PinResult.Error("Network error: ${e.message}")
         }
     }
+
+    override suspend fun searchPins(query: String): PinResult<List<Pin>> {
+        return try {
+            val response = pinApi.searchPins(query)
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null && apiResponse.success) {
+                    PinResult.Success(apiResponse.data)
+                } else {
+                    PinResult.Error(apiResponse?.message ?: "No pins found")
+                }
+            } else {
+                PinResult.Error("Failed to search pins: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun getCreatedPins(): PinResult<List<Pin>> {
+        return try {
+            val response = pinApi.getCreatedPins()
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null && apiResponse.success) {
+                    PinResult.Success(apiResponse.data)
+                } else {
+                    PinResult.Error(apiResponse?.message ?: "No created pins found")
+                }
+            } else {
+                PinResult.Error("Failed to fetch created pins: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun getSavedPins(): PinResult<List<Pin>> {
+        return try {
+            val response = pinApi.getSavedPins()
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null && apiResponse.success) {
+                    PinResult.Success(apiResponse.data)
+                } else {
+                    PinResult.Error(apiResponse?.message ?: "No saved pins found")
+                }
+            } else {
+                PinResult.Error("Failed to fetch saved pins: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun savePin(pinId: String): PinResult<Unit> {
+        return try {
+            val response = pinApi.savePin(pinId)
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null && apiResponse.success) {
+                    PinResult.Success(Unit)
+                } else {
+                    PinResult.Error(apiResponse?.message ?: "Failed to save pin")
+                }
+            } else {
+                PinResult.Error("Failed to save pin: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun unsavePin(pinId: String): PinResult<Unit> {
+        return try {
+            val response = pinApi.unsavePin(pinId)
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null && apiResponse.success) {
+                    PinResult.Success(Unit)
+                } else {
+                    PinResult.Error(apiResponse?.message ?: "Failed to unsave pin")
+                }
+            } else {
+                PinResult.Error("Failed to unsave pin: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun downloadPin(pinId: String): PinResult<Unit> {
+        return try {
+            val response = pinApi.downloadPin(pinId)
+            if (response.isSuccessful) {
+                val apiResponse = response.body()
+                if (apiResponse != null && apiResponse.success) {
+                    PinResult.Success(Unit)
+                } else {
+                    PinResult.Error(apiResponse?.message ?: "Failed to download pin")
+                }
+            } else {
+                PinResult.Error("Failed to download pin: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error("Network error: ${e.message}")
+        }
+    }
 }

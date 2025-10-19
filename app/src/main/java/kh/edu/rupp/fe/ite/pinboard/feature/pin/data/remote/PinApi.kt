@@ -6,10 +6,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
-import retrofit2.http.GET
-import retrofit2.http.Multipart
-import retrofit2.http.POST
-import retrofit2.http.Part
+import retrofit2.http.*
 
 interface PinApi {
     
@@ -25,4 +22,23 @@ interface PinApi {
         @Part("link") link: RequestBody?,
         @Part media: List<MultipartBody.Part>
     ): Response<ApiResponse<Pin>>
+
+    // Profile-related endpoints
+    @GET("api/pins")
+    suspend fun searchPins(@Query("search") query: String): Response<ApiResponse<List<Pin>>>
+    
+    @GET("api/pins/created")
+    suspend fun getCreatedPins(): Response<ApiResponse<List<Pin>>>
+    
+    @GET("api/pins/saved")
+    suspend fun getSavedPins(): Response<ApiResponse<List<Pin>>>
+    
+    @POST("api/pins/{pinId}/save")
+    suspend fun savePin(@Path("pinId") pinId: String): Response<ApiResponse<Unit>>
+    
+    @DELETE("api/pins/{pinId}/save")
+    suspend fun unsavePin(@Path("pinId") pinId: String): Response<ApiResponse<Unit>>
+    
+    @GET("api/pins/media/{pinId}/download")
+    suspend fun downloadPin(@Path("pinId") pinId: String): Response<ApiResponse<Unit>>
 }

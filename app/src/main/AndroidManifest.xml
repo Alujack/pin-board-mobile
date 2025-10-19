@@ -3,24 +3,33 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:name=".app.App"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="PinBoard"
+        android:label="Pinterest"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PinBoard"
         android:usesCleartextTraffic="true"
         tools:targetApi="31"
         >
+        <service
+            android:name=".notification.FcmService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <activity
             android:icon="@mipmap/ic_launcher"
             android:name=".MainActivity"
             android:exported="true"
-            android:label="PinBoard"
+            android:label="Pinterest"
             android:theme="@style/Theme.PinBoard"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

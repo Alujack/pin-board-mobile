@@ -2,6 +2,14 @@
 package kh.edu.rupp.fe.ite.pinboard.app.navigation
 
 import android.util.Log
+import android.Manifest
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.firebase.messaging.FirebaseMessaging
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -11,10 +19,10 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,12 +35,17 @@ import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.login.LoginScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.register.RegisterScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.create.CreatePinScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile.ProfileScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.search.SearchScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.notification.data.NotificationPrefs
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object Home : Screen("home")
     object CreatePin : Screen("create_pin")
+    object Profile : Screen("profile")
+    object Search : Screen("search")
 }
 
 /**
@@ -100,6 +113,12 @@ fun AuthNavGraph(
                 },
                 onNavigateToCreatePin = {
                     navController.navigate(Screen.CreatePin.route)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
+                },
+                onNavigateToSearch = {
+                    navController.navigate(Screen.Search.route)
                 }
             )
         }
@@ -114,6 +133,22 @@ fun AuthNavGraph(
                 }
             )
         }
+
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Search.route) {
+            SearchScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
 
@@ -124,8 +159,59 @@ fun AuthNavGraph(
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit,
-    onNavigateToCreatePin: () -> Unit
+    onNavigateToCreatePin: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToSearch: () -> Unit
 ) {
+    val context = LocalContext.current
+    val notificationPrefs = remember { NotificationPrefs(context) }
+    val optInDone by notificationPrefs.optInDone.collectAsState(initial = false)
+    var showNotifOptIn by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    Log.d("HomeScreen", "FCM token: $token")
+                    // TODO: send token to backend
+                }
+            }
+            scope.launch { notificationPrefs.setOptInDone(true) }
+        } else {
+            Toast.makeText(context, "Notifications disabled", Toast.LENGTH_SHORT).show()
+            scope.launch { notificationPrefs.setOptInDone(true) } // user decided; don't nag again
+        }
+    }
+
+    LaunchedEffect(optInDone) {
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+
+        if (!optInDone) {
+            if (needsPermission) {
+                showNotifOptIn = true
+            } else {
+                // Permission not required or already granted; mark done and fetch token once
+                showNotifOptIn = false
+                scope.launch { notificationPrefs.setOptInDone(true) }
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val token = task.result
+                        Log.d("HomeScreen", "FCM token: $token")
+                        // TODO: send token to backend
+                    }
+                }
+            }
+        } else {
+            showNotifOptIn = false
+        }
+    }
     val tabs = remember {
         listOf(
             BottomTab.Home,
@@ -170,7 +256,10 @@ fun HomeScreen(
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { selectedTab = BottomTab.Search }) {
+                    IconButton(onClick = { 
+                        selectedTab = BottomTab.Search
+                        onNavigateToSearch()
+                    }) {
                         Icon(
                             Icons.Outlined.Search,
                             contentDescription = "Search",
@@ -188,7 +277,10 @@ fun HomeScreen(
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { selectedTab = BottomTab.Profile }) {
+                    IconButton(onClick = { 
+                        selectedTab = BottomTab.Profile
+                        onNavigateToProfile()
+                    }) {
                         Icon(
                             Icons.Outlined.Person,
                             contentDescription = "Profile",
@@ -216,6 +308,33 @@ fun HomeScreen(
                 .padding(innerPadding),
             color = MaterialTheme.colorScheme.background
         ) {
+            if (showNotifOptIn) {
+                AlertDialog(
+                    onDismissRequest = { showNotifOptIn = false },
+                    title = { Text(text = "Enable notifications?") },
+                    text = { Text(text = "Allow push notifications to get updates.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showNotifOptIn = false
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        val token = task.result
+                                        Log.d("HomeScreen", "FCM token: $token")
+                                        // TODO: send token to backend
+                                    }
+                                }
+                                scope.launch { notificationPrefs.setOptInDone(true) }
+                            }
+                        }) { Text("Allow") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showNotifOptIn = false; scope.launch { notificationPrefs.setOptInDone(true) } }) { Text("Not now") }
+                    }
+                )
+            }
             when (selectedTab) {
                 BottomTab.Home -> TabPlaceholderContent("Home Feed")
                 BottomTab.Search -> TabPlaceholderContent("Search")

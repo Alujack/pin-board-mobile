@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1042300321091",
+    "project_id": "pinterest-app-4c344",
+    "storage_bucket": "pinterest-app-4c344.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1042300321091:android:ce4544462a3569f21203f6",
+        "android_client_info": {
+          "package_name": "kh.edu.rupp.fe.ite.pinboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-0MLeQ5OyNc5GkyybaXdXCXgwbejeERs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

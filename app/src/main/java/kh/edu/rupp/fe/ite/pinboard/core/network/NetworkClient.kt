@@ -1,6 +1,7 @@
-package kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote
+package kh.edu.rupp.fe.ite.pinboard.core.network
 
 import android.util.Log
+import kh.edu.rupp.fe.ite.pinboard.BuildConfig
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
@@ -17,10 +18,9 @@ import javax.inject.Singleton
 class NetworkClient @Inject constructor(
     private val tokenManager: TokenManager
 ) {
-    
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl("https://pin-board-backend-git-master-alujacks-projects.vercel.app/")
+            .baseUrl(BuildConfig.API_BASE_URL)
             .client(createOkHttpClient())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -28,7 +28,7 @@ class NetworkClient @Inject constructor(
 
     private fun createOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            // Avoid logging large multipart bodies to prevent OOM
+            // Match user's original working style
             level = HttpLoggingInterceptor.Level.HEADERS
             redactHeader("Authorization")
         }
@@ -43,9 +43,7 @@ class NetworkClient @Inject constructor(
             .build()
     }
 
-    fun <T> create(service: Class<T>): T {
-        return retrofit.create(service)
-    }
+    fun <T> create(service: Class<T>): T = retrofit.create(service)
 
     /**
      * Auth interceptor that adds the access token to requests
@@ -68,38 +66,40 @@ class NetworkClient @Inject constructor(
         }
 
         private fun shouldSkipAuth(path: String): Boolean {
-            // Only skip for exact public endpoints
-            return path == "/api/auth/login" ||
-                    path == "/api/auth/register" ||
-                    path == "/api/auth/refresh" ||
-                    path == "/api/boards" ||
-                    path == "/api/pins" // search/listing is public; saved/created require auth and have different paths
+            // Use user's previous logic: only skip auth endpoints
+            return path.contains("/api/auth/login") ||
+                path.contains("/api/auth/register") ||
+                path.contains("/api/auth/refresh")
         }
     }
+
     private inner class RefreshTokenInterceptor : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val request = chain.request()
-
             val response = chain.proceed(request)
 
             if (response.code == 401) {
                 return runBlocking {
                     val sessionId = tokenManager.getSessionIdSync()
                     if (sessionId == null) {
-                        // No sessionId to refresh; return original 401 without clearing immediately
+                        tokenManager.clearAllTokens()
                         return@runBlocking response
                     }
 
                     val tempRetrofit = Retrofit.Builder()
-                        .baseUrl("https://pin-board-backend-git-master-alujacks-projects.vercel.app/")
+                        .baseUrl(BuildConfig.API_BASE_URL)
                         .addConverterFactory(GsonConverterFactory.create())
                         .client(OkHttpClient())
                         .build()
 
-                    val authApi = tempRetrofit.create(AuthApi::class.java)
+                    val authApi = tempRetrofit.create(
+                        kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi::class.java
+                    )
 
                     try {
-                        val refreshResponse = authApi.refreshToken(RefreshTokenRequest(sessionId))
+                        val refreshResponse = authApi.refreshToken(
+                            kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.RefreshTokenRequest(sessionId)
+                        )
 
                         if (refreshResponse.isSuccessful) {
                             val refreshData = refreshResponse.body()
@@ -110,31 +110,27 @@ class NetworkClient @Inject constructor(
 
                                 val newRequest = request.newBuilder()
                                     .removeHeader("Authorization")
-                                    .addHeader("Authorization", "Bearer ${refreshData.sessionToken}")
+                                    .addHeader(
+                                        "Authorization",
+                                        "Bearer ${refreshData.sessionToken}"
+                                    )
                                     .build()
 
                                 return@runBlocking chain.proceed(newRequest)
                             }
-                        } else if (refreshResponse.code() == 401) {
-                            // Refresh token invalid; now clear tokens
+                        } else {
                             tokenManager.clearAllTokens()
                         }
                     } catch (e: Exception) {
                         Log.e("NetworkClient", "Token refresh failed", e)
-                        // Network/other error: do not wipe tokens aggressively; return original response
+                        tokenManager.clearAllTokens()
                     }
 
                     return@runBlocking response
                 }
             }
+
             return response
         }
     }
-//
-//    private fun shouldSkipAuth(path: String): Boolean {
-//            return path.contains("/api/auth/login") ||
-//                    path.contains("/api/auth/register") ||
-//                    path.contains("/api/auth/refresh")
-//        }
-//    }
 }
