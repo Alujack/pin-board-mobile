@@ -406,7 +406,7 @@ private fun PinItem(
         Box {
             // Pin Image
             AsyncImage(
-                model = pin.imageUrl ?: pin.videoUrl,
+                model = pin.media[0].media_url,
                 contentDescription = pin.title,
                 modifier = Modifier
                     .fillMaxWidth()
