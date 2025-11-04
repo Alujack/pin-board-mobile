@@ -20,7 +20,7 @@ class NetworkClient @Inject constructor(
     
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:3000/")
+            .baseUrl("http://localhost:3000/")
             .client(createOkHttpClient())
             .addConverterFactory(GsonConverterFactory.create())
             .build()

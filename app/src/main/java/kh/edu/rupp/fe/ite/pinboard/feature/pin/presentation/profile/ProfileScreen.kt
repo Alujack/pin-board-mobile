@@ -49,29 +49,7 @@ fun ProfileScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "Profile",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 18.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF1C1C1C)
-                ),
-                actions = {
-                    IconButton(onClick = { /* TODO: Settings */ }) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
-                    }
-                }
-            )
+
         }
     ) { paddingValues ->
         LazyColumn(
@@ -79,6 +57,7 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+           
             // Profile Header
             item {
                 ProfileHeader(
@@ -109,6 +88,38 @@ fun ProfileScreen(
                 )
             }
 
+            // If searching, show search results
+            if (searchQuery.isNotBlank()) {
+                if (state.isSearching) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else {
+                    item {
+                        PinGrid(
+                            pins = state.searchResults,
+                            isSavedContext = false,
+                            savedIds = state.savedPinIds,
+                            onPinClick = { /* TODO: Navigate to pin detail */ },
+                            onPinToggleSave = { pin ->
+                                val id = pin._id ?: return@PinGrid
+                                if (state.savedPinIds.contains(id)) viewModel.unsavePin(id) else viewModel.savePin(id)
+                            },
+                            onPinDownload = { pin -> viewModel.downloadPin(pin._id) }
+                        )
+                    }
+                }
+                // Skip tab content when searching
+                return@LazyColumn
+            }
+
             // Content based on selected tab
             when (selectedTab) {
                 ProfileTab.Created -> {
@@ -127,8 +138,13 @@ fun ProfileScreen(
                         item {
                             PinGrid(
                                 pins = state.createdPins,
+                                isSavedContext = false,
+                                savedIds = state.savedPinIds,
                                 onPinClick = { pin -> /* TODO: Navigate to pin detail */ },
-                                onPinSave = { pin -> viewModel.savePin(pin._id) },
+                                onPinToggleSave = { pin ->
+                                    val id = pin._id ?: return@PinGrid
+                                    if (state.savedPinIds.contains(id)) viewModel.unsavePin(id) else viewModel.savePin(id)
+                                },
                                 onPinDownload = { pin -> viewModel.downloadPin(pin._id) }
                             )
                         }
@@ -150,8 +166,10 @@ fun ProfileScreen(
                         item {
                             PinGrid(
                                 pins = state.savedPins,
+                                isSavedContext = true,
+                                savedIds = state.savedPinIds,
                                 onPinClick = { pin -> /* TODO: Navigate to pin detail */ },
-                                onPinSave = { pin -> viewModel.savePin(pin._id) },
+                                onPinToggleSave = { pin -> viewModel.unsavePin(pin._id) },
                                 onPinDownload = { pin -> viewModel.downloadPin(pin._id) }
                             )
                         }
@@ -341,8 +359,10 @@ private fun ProfileTabRow(
 @Composable
 private fun PinGrid(
     pins: List<Pin>,
+    isSavedContext: Boolean,
+    savedIds: Set<String>,
     onPinClick: (Pin) -> Unit,
-    onPinSave: (Pin) -> Unit,
+    onPinToggleSave: (Pin) -> Unit,
     onPinDownload: (Pin) -> Unit
 ) {
     if (pins.isEmpty()) {
@@ -372,7 +392,7 @@ private fun PinGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(400.dp), // Fixed height for demo
+                .height(400.dp),
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -380,8 +400,10 @@ private fun PinGrid(
             items(pins) { pin ->
                 PinItem(
                     pin = pin,
+                    isSavedContext = isSavedContext,
+                    isSaved = savedIds.contains(pin._id ?: ""),
                     onClick = { onPinClick(pin) },
-                    onSave = { onPinSave(pin) },
+                    onSaveOrUnsave = { onPinToggleSave(pin) },
                     onDownload = { onPinDownload(pin) }
                 )
             }
@@ -392,8 +414,10 @@ private fun PinGrid(
 @Composable
 private fun PinItem(
     pin: Pin,
+    isSavedContext: Boolean,
+    isSaved: Boolean,
     onClick: () -> Unit,
-    onSave: () -> Unit,
+    onSaveOrUnsave: () -> Unit,
     onDownload: () -> Unit
 ) {
     Card(
@@ -428,7 +452,7 @@ private fun PinItem(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
-                        onClick = onSave,
+                        onClick = onSaveOrUnsave,
                         modifier = Modifier
                             .size(32.dp)
                             .background(
@@ -437,8 +461,8 @@ private fun PinItem(
                             )
                     ) {
                         Icon(
-                            Icons.Outlined.BookmarkBorder,
-                            contentDescription = "Save",
+                            imageVector = if (isSavedContext) Icons.Outlined.BookmarkRemove else if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = if (isSavedContext) "Unsave" else if (isSaved) "Saved" else "Save",
                             modifier = Modifier.size(16.dp),
                             tint = Color(0xFF1C1C1C)
                         )
@@ -477,7 +501,6 @@ private fun PinItem(
         }
     }
 }
-
 enum class ProfileTab(val displayName: String) {
     Created("Created"),
     Saved("Saved")
