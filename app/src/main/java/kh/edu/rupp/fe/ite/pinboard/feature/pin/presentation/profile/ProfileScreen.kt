@@ -3,12 +3,9 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,191 +19,154 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    onNavigateBack: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableStateOf(ProfileTab.Created) }
     var searchQuery by remember { mutableStateOf("") }
 
+    // Auto search when typing
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) {
             viewModel.searchPins(searchQuery)
         }
     }
 
-    Scaffold(
-        topBar = {
+    // Main content (no Scaffold here → bottom bar remains visible)
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        // --- Profile Header ---
+        ProfileHeader(
+            username = "Your Username",
+            followersCount = 1250,
+            followingCount = 89,
+            pinsCount = state.createdMedia.size,
+            onEditProfile = {}
+        )
 
+        // --- Search bar ---
+        SearchBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onSearch = { viewModel.searchPins(it) },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        // --- Tabs (Created / Saved) ---
+        ProfileTabRow(
+            selectedTab = selectedTab,
+            onTabSelected = { tab ->
+                selectedTab = tab
+                if (tab == ProfileTab.Created) viewModel.loadCreatedMedia()
+                else viewModel.loadSavedMedia()
+            }
+        )
+
+        // --- Content Switcher ---
+        when {
+            searchQuery.isNotBlank() -> {
+                if (state.isSearching) LoadingView()
+                else PinGrid(
+                    pins = state.searchResults,
+                    savedIds = state.savedPinIds,
+                    onPinClick = {},
+                    onPinToggleSave = { pin ->
+                        val id = pin._id ?: return@PinGrid
+                        if (state.savedPinIds.contains(id)) viewModel.unsavePin(id)
+                        else viewModel.savePin(id)
+                    },
+                    onPinDownload = { pin -> viewModel.downloadPin(pin._id ?: "") }
+                )
+            }
+
+            selectedTab == ProfileTab.Created -> {
+                if (state.isLoading) LoadingView()
+                else MediaGrid(
+                    media = state.createdMedia,
+                    savedIds = state.savedPinIds,
+                    isSavedContext = false,
+                    onToggleSave = { media ->
+                        val id = media.pinId ?: return@MediaGrid
+                        if (state.savedPinIds.contains(id)) viewModel.unsavePin(id)
+                        else viewModel.savePin(id)
+                    },
+                    onDownload = { media -> viewModel.downloadPin(media.pinId ?: "") }
+                )
+            }
+
+            selectedTab == ProfileTab.Saved -> {
+                if (state.isLoading) LoadingView()
+                else MediaGrid(
+                    media = state.savedMedia,
+                    savedIds = state.savedPinIds,
+                    isSavedContext = true,
+                    onToggleSave = { media -> viewModel.unsavePin(media.pinId ?: "") },
+                    onDownload = { media -> viewModel.downloadPin(media.pinId ?: "") }
+                )
+            }
         }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+
+        // --- Error Message ---
+        state.errorMessage?.let { message ->
+            ErrorMessageCard(message = message, onDismiss = { viewModel.clearError() })
+        }
+    }
+}
+
+// ------------------------------------------------------------------
+// Components
+// ------------------------------------------------------------------
+
+@Composable
+private fun LoadingView() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 50.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(color = Color(0xFFE60023))
+    }
+}
+
+@Composable
+private fun ErrorMessageCard(message: String, onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-           
-            // Profile Header
-            item {
-                ProfileHeader(
-                    username = "Your Username", // TODO: Get from user data
-                    followersCount = 1250,
-                    followingCount = 89,
-                    pinsCount = state.createdPins.size,
-                    onEditProfile = { /* TODO: Edit profile */ }
-                )
-            }
-
-            // Search Bar
-            item {
-                SearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onSearch = { viewModel.searchPins(it) },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-
-            // Tab Row
-            item {
-                ProfileTabRow(
-                    selectedTab = selectedTab,
-                    onTabSelected = { selectedTab = it },
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // If searching, show search results
-            if (searchQuery.isNotBlank()) {
-                if (state.isSearching) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                } else {
-                    item {
-                        PinGrid(
-                            pins = state.searchResults,
-                            isSavedContext = false,
-                            savedIds = state.savedPinIds,
-                            onPinClick = { /* TODO: Navigate to pin detail */ },
-                            onPinToggleSave = { pin ->
-                                val id = pin._id ?: return@PinGrid
-                                if (state.savedPinIds.contains(id)) viewModel.unsavePin(id) else viewModel.savePin(id)
-                            },
-                            onPinDownload = { pin -> viewModel.downloadPin(pin._id) }
-                        )
-                    }
-                }
-                // Skip tab content when searching
-                return@LazyColumn
-            }
-
-            // Content based on selected tab
-            when (selectedTab) {
-                ProfileTab.Created -> {
-                    if (state.isLoading) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    } else {
-                        item {
-                            PinGrid(
-                                pins = state.createdPins,
-                                isSavedContext = false,
-                                savedIds = state.savedPinIds,
-                                onPinClick = { pin -> /* TODO: Navigate to pin detail */ },
-                                onPinToggleSave = { pin ->
-                                    val id = pin._id ?: return@PinGrid
-                                    if (state.savedPinIds.contains(id)) viewModel.unsavePin(id) else viewModel.savePin(id)
-                                },
-                                onPinDownload = { pin -> viewModel.downloadPin(pin._id) }
-                            )
-                        }
-                    }
-                }
-                ProfileTab.Saved -> {
-                    if (state.isLoading) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    } else {
-                        item {
-                            PinGrid(
-                                pins = state.savedPins,
-                                isSavedContext = true,
-                                savedIds = state.savedPinIds,
-                                onPinClick = { pin -> /* TODO: Navigate to pin detail */ },
-                                onPinToggleSave = { pin -> viewModel.unsavePin(pin._id) },
-                                onPinDownload = { pin -> viewModel.downloadPin(pin._id) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Error Message
-            if (state.errorMessage != null) {
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Error,
-                                contentDescription = null,
-                                tint = Color(0xFFD32F2F)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = state.errorMessage ?: "",
-                                color = Color(0xFFD32F2F),
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(onClick = { viewModel.clearError() }) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss")
-                            }
-                        }
-                    }
-                }
+            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFD32F2F))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = message,
+                color = Color(0xFFD32F2F),
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Dismiss")
             }
         }
     }
@@ -226,58 +186,35 @@ private fun ProfileHeader(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Profile Picture
         Box(
             modifier = Modifier
                 .size(80.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFE0E0E0))
+                .background(Color(0xFFE0E0E0)),
+            contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Default.Person,
-                contentDescription = "Profile Picture",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                tint = Color(0xFF757575)
-            )
+            Icon(Icons.Default.Person, contentDescription = "Profile Picture", tint = Color.Gray)
         }
-
         Spacer(modifier = Modifier.height(12.dp))
+        Text(username, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // Username
-        Text(
-            text = username,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1C1C1C)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Stats Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            StatItem(count = pinsCount, label = "Pins")
-            StatItem(count = followersCount, label = "Followers")
-            StatItem(count = followingCount, label = "Following")
+            StatItem(pinsCount, "Pins")
+            StatItem(followersCount, "Followers")
+            StatItem(followingCount, "Following")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Edit Profile Button
+        Spacer(modifier = Modifier.height(12.dp))
         Button(
             onClick = onEditProfile,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFE60023),
-                contentColor = Color.White
-            )
+            shape = RoundedCornerShape(20.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE60023))
         ) {
-            Text("Edit Profile", fontWeight = FontWeight.SemiBold)
+            Text("Edit Profile", color = Color.White)
         }
     }
 }
@@ -285,17 +222,8 @@ private fun ProfileHeader(
 @Composable
 private fun StatItem(count: Int, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = count.toString(),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1C1C1C)
-        )
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            color = Color(0xFF757575)
-        )
+        Text("$count", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(label, color = Color.Gray, fontSize = 14.sp)
     }
 }
 
@@ -309,11 +237,9 @@ private fun SearchBar(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
         placeholder = { Text("Search pins...") },
-        leadingIcon = {
-            Icon(Icons.Outlined.Search, contentDescription = "Search")
-        },
+        modifier = modifier.fillMaxWidth(),
+        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = "Search") },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
@@ -325,26 +251,24 @@ private fun SearchBar(
         shape = RoundedCornerShape(24.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Color(0xFFE60023),
-            unfocusedBorderColor = Color(0xFFE0E0E0)
+            unfocusedBorderColor = Color.LightGray
         )
     )
 }
 
 @Composable
-private fun ProfileTabRow(
-    selectedTab: ProfileTab,
-    onTabSelected: (ProfileTab) -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun ProfileTabRow(selectedTab: ProfileTab, onTabSelected: (ProfileTab) -> Unit) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         ProfileTab.values().forEach { tab ->
             TextButton(
                 onClick = { onTabSelected(tab) },
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = if (selectedTab == tab) Color(0xFFE60023) else Color(0xFF757575)
+                    contentColor = if (selectedTab == tab) Color(0xFFE60023) else Color.Gray
                 )
             ) {
                 Text(
@@ -356,151 +280,158 @@ private fun ProfileTabRow(
     }
 }
 
+// ------------------------------------------------------------------
+// Media Grid + Pin Grid (Pinterest style)
+// ------------------------------------------------------------------
+
+@Composable
+private fun MediaGrid(
+    media: List<MediaItem>,
+    savedIds: Set<String>,
+    isSavedContext: Boolean,
+    onToggleSave: (MediaItem) -> Unit,
+    onDownload: (MediaItem) -> Unit
+) {
+    if (media.isEmpty()) {
+        EmptyPlaceholder("No media yet")
+    } else {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(media) { item ->
+                MediaItemCard(
+                    item = item,
+                    isSaved = savedIds.contains(item.pinId ?: ""),
+                    isSavedContext = isSavedContext,
+                    onSaveOrUnsave = { onToggleSave(item) },
+                    onDownload = { onDownload(item) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaItemCard(
+    item: MediaItem,
+    isSavedContext: Boolean,
+    isSaved: Boolean,
+    onSaveOrUnsave: () -> Unit,
+    onDownload: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box {
+            AsyncImage(
+                model = item.thumbnail_url ?: item.media_url,
+                contentDescription = item.public_id,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .height(220.dp)
+                    .fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                ActionIcon(
+                    icon = if (isSavedContext) Icons.Outlined.BookmarkRemove
+                    else if (isSaved) Icons.Filled.Bookmark
+                    else Icons.Outlined.BookmarkBorder,
+                    onClick = onSaveOrUnsave
+                )
+                ActionIcon(icon = Icons.Outlined.Download, onClick = onDownload)
+            }
+        }
+    }
+}
+
 @Composable
 private fun PinGrid(
     pins: List<Pin>,
-    isSavedContext: Boolean,
     savedIds: Set<String>,
     onPinClick: (Pin) -> Unit,
     onPinToggleSave: (Pin) -> Unit,
     onPinDownload: (Pin) -> Unit
 ) {
     if (pins.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Outlined.Image,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = Color(0xFF757575)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "No pins yet",
-                    color = Color(0xFF757575),
-                    fontSize = 16.sp
-                )
-            }
-        }
+        EmptyPlaceholder("No pins found")
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(400.dp),
-            contentPadding = PaddingValues(16.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(pins) { pin ->
-                PinItem(
-                    pin = pin,
-                    isSavedContext = isSavedContext,
-                    isSaved = savedIds.contains(pin._id ?: ""),
-                    onClick = { onPinClick(pin) },
-                    onSaveOrUnsave = { onPinToggleSave(pin) },
-                    onDownload = { onPinDownload(pin) }
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPinClick(pin) },
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Box {
+                        AsyncImage(
+                            model = pin.imageUrl ?: pin.videoUrl,
+                            contentDescription = pin.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            ActionIcon(
+                                icon = if (savedIds.contains(pin._id ?: "")) Icons.Filled.Bookmark
+                                else Icons.Outlined.BookmarkBorder,
+                                onClick = { onPinToggleSave(pin) }
+                            )
+                            ActionIcon(Icons.Outlined.Download, onClick = { onPinDownload(pin) })
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun PinItem(
-    pin: Pin,
-    isSavedContext: Boolean,
-    isSaved: Boolean,
-    onClick: () -> Unit,
-    onSaveOrUnsave: () -> Unit,
-    onDownload: () -> Unit
-) {
-    Card(
+private fun ActionIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    IconButton(
+        onClick = onClick,
         modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .size(32.dp)
+            .background(Color.White.copy(alpha = 0.85f), CircleShape)
     ) {
-        Box {
-            // Pin Image
-            AsyncImage(
-                model = pin.imageUrl ?: pin.videoUrl,
-                contentDescription = pin.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentScale = ContentScale.Crop
-            )
-
-            // Overlay with actions
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
-            ) {
-                // Top actions
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    IconButton(
-                        onClick = onSaveOrUnsave,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(
-                                Color.White.copy(alpha = 0.9f),
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = if (isSavedContext) Icons.Outlined.BookmarkRemove else if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                            contentDescription = if (isSavedContext) "Unsave" else if (isSaved) "Saved" else "Save",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF1C1C1C)
-                        )
-                    }
-                    IconButton(
-                        onClick = onDownload,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(
-                                Color.White.copy(alpha = 0.9f),
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            Icons.Outlined.Download,
-                            contentDescription = "Download",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF1C1C1C)
-                        )
-                    }
-                }
-
-                // Bottom title
-                Text(
-                    text = pin.title,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(8.dp),
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+        Icon(icon, contentDescription = null, tint = Color.Black)
     }
 }
+
+@Composable
+private fun EmptyPlaceholder(text: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, color = Color.Gray, fontSize = 16.sp)
+    }
+}
+
 enum class ProfileTab(val displayName: String) {
     Created("Created"),
     Saved("Saved")

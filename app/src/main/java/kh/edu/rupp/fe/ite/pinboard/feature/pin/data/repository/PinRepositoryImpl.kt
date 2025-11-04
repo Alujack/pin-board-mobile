@@ -7,6 +7,7 @@ import android.provider.MediaStore
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.PinApi
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
 import kotlinx.coroutines.Dispatchers
@@ -46,12 +47,16 @@ class PinRepositoryImpl @Inject constructor(
         PinResult.Success(api.searchPins(query))
     }.getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
 
-    override suspend fun getCreatedPins(): PinResult<List<Pin>> = runCatching {
-        PinResult.Success(api.getCreatedPins())
+    override suspend fun getCreatedImages(): PinResult<List<MediaItem>> = runCatching {
+        val resp = api.getCreatedImages()
+        val list = resp.data ?: emptyList()
+        PinResult.Success(list)
     }.getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
 
-    override suspend fun getSavedPins(): PinResult<List<Pin>> = runCatching {
-        PinResult.Success(api.getSavedPins())
+    override suspend fun getSavedMedia(): PinResult<List<MediaItem>> = runCatching {
+        val resp = api.getSavedMedia()
+        val list = resp.data ?: emptyList()
+        PinResult.Success(list)
     }.getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
 
     override suspend fun savePin(pinId: String): PinResult<Unit> = runCatching {

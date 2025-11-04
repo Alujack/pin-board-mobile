@@ -26,9 +26,5 @@ abstract class PinBindModule {
 object PinProvideModule {
     @Provides
     @Singleton
-    fun providePinApi(retrofit: Retrofit): PinApi = retrofit.create(PinApi::class.java)
-
-    @Provides
-    @Singleton
     fun provideContext(@ApplicationContext ctx: Context): Context = ctx
 }

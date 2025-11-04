@@ -54,10 +54,10 @@ class SearchViewModel @Inject constructor(
                         searchResults = result.data
                     )
                     // refresh saved ids alongside results for toggle state
-                    when (val saved = pinRepository.getSavedPins()) {
+                    when (val saved = pinRepository.getSavedMedia()) {
                         is PinResult.Success -> {
                             _state.value = _state.value.copy(
-                                savedPinIds = saved.data.mapNotNull { it._id }.toSet()
+                                savedPinIds = saved.data.mapNotNull { it.pinId }.toSet()
                             )
                         }
                         else -> {}
