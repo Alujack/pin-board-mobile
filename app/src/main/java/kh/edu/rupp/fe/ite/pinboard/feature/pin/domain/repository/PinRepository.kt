@@ -2,6 +2,7 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository
 
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import java.io.File
 
 sealed class PinResult<out T> {
@@ -18,4 +19,16 @@ interface PinRepository {
         link: String?,
         media: List<File>
     ): PinResult<Pin>
+    
+    // Search
+    suspend fun searchPins(query: String): PinResult<List<Pin>>
+    
+    // Profile-related media
+    suspend fun getCreatedImages(): PinResult<List<MediaItem>>
+    suspend fun getSavedMedia(): PinResult<List<MediaItem>>
+    
+    // Save/unsave/download
+    suspend fun savePin(pinId: String): PinResult<Unit>
+    suspend fun unsavePin(pinId: String): PinResult<Unit>
+    suspend fun downloadPin(pinId: String): PinResult<Unit>
 }
