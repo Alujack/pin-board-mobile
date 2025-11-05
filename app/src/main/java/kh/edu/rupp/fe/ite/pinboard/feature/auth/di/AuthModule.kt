@@ -18,6 +18,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import kh.edu.rupp.fe.ite.pinboard.BuildConfig
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -51,7 +52,7 @@ object AuthModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-                .baseUrl("http://10.0.2.2:3000/") // Replace with your actual base URL
+                .baseUrl(BuildConfig.API_BASE_URL)
                 .client(okHttpClient)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
