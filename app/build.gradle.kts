@@ -18,6 +18,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Networking: single source of truth for base URL
+        buildConfigField(
+            "String",
+            "API_BASE_URL",
+            "\"http:192.168.1.30:3000\""
+        )
     }
 
     buildTypes {
@@ -42,7 +48,6 @@ android {
 }
 
 //dependencies {
-//
 //    implementation(libs.androidx.core.ktx)
 //    implementation(libs.androidx.lifecycle.runtime.ktx)
 //    implementation(libs.androidx.activity.compose)
@@ -179,6 +184,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // app/build.gradle.kts
+    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+    // Firebase Cloud Messaging (explicit version to avoid resolution issues)
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
     
 }
