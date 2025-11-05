@@ -27,12 +27,16 @@ import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.login.LoginScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.register.RegisterScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.create.CreatePinScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile.ProfileScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.search.SearchScreen
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object Home : Screen("home")
     object CreatePin : Screen("create_pin")
+    object Profile : Screen("profile")
+    object Search : Screen("search")
 }
 
 /**
@@ -110,6 +114,22 @@ fun AuthNavGraph(
                     navController.popBackStack()
                 },
                 onPinCreated = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Profile.route) {
+            ProfileScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Search.route) {
+            SearchScreen(
+                onNavigateBack = {
                     navController.popBackStack()
                 }
             )
@@ -218,9 +238,9 @@ fun HomeScreen(
         ) {
             when (selectedTab) {
                 BottomTab.Home -> TabPlaceholderContent("Home Feed")
-                BottomTab.Search -> TabPlaceholderContent("Search")
+                BottomTab.Search -> SearchScreen(onNavigateBack = { selectedTab = BottomTab.Home })
                 BottomTab.Messages -> TabPlaceholderContent("Messages")
-                BottomTab.Profile -> TabPlaceholderContent("Profile")
+                BottomTab.Profile -> ProfileScreen(onNavigateBack = { selectedTab = BottomTab.Home })
             }
         }
     }

@@ -1,0 +1,17 @@
+diff a/app/build.gradle.kts b/app/build.gradle.kts	(rejected hunks)
+@@ -189,9 +189,14 @@
+     debugImplementation("androidx.compose.ui:ui-tooling")
+     debugImplementation("androidx.compose.ui:ui-test-manifest")
+ 
++<<<<<<< HEAD
+     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+     // Firebase Cloud Messaging (explicit version to avoid resolution issues)
+     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
+ 
+     // app/build.gradle.kts
++=======
++    // app/build.gradle.kts
++    
++>>>>>>> 40a60d3cb3ec2585ec91588424bb3f6b59a375a1
+ }
+\ No newline at end of file
