@@ -113,12 +113,6 @@ fun AuthNavGraph(
                 },
                 onNavigateToCreatePin = {
                     navController.navigate(Screen.CreatePin.route)
-                },
-                onNavigateToProfile = {
-                    navController.navigate(Screen.Profile.route)
-                },
-                onNavigateToSearch = {
-                    navController.navigate(Screen.Search.route)
                 }
             )
         }
@@ -159,9 +153,7 @@ fun AuthNavGraph(
 @Composable
 fun HomeScreen(
     onLogout: () -> Unit,
-    onNavigateToCreatePin: () -> Unit,
-    onNavigateToProfile: () -> Unit,
-    onNavigateToSearch: () -> Unit
+    onNavigateToCreatePin: () -> Unit
 ) {
     val context = LocalContext.current
     val notificationPrefs = remember { NotificationPrefs(context) }
@@ -256,10 +248,7 @@ fun HomeScreen(
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { 
-                        selectedTab = BottomTab.Search
-                        onNavigateToSearch()
-                    }) {
+                    IconButton(onClick = { selectedTab = BottomTab.Search }) {
                         Icon(
                             Icons.Outlined.Search,
                             contentDescription = "Search",
@@ -277,10 +266,7 @@ fun HomeScreen(
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { 
-                        selectedTab = BottomTab.Profile
-                        onNavigateToProfile()
-                    }) {
+                    IconButton(onClick = { selectedTab = BottomTab.Profile }) {
                         Icon(
                             Icons.Outlined.Person,
                             contentDescription = "Profile",
@@ -337,9 +323,9 @@ fun HomeScreen(
             }
             when (selectedTab) {
                 BottomTab.Home -> TabPlaceholderContent("Home Feed")
-                BottomTab.Search -> TabPlaceholderContent("Search")
+                BottomTab.Search -> SearchScreen(onNavigateBack = { selectedTab = BottomTab.Home })
                 BottomTab.Messages -> TabPlaceholderContent("Messages")
-                BottomTab.Profile -> TabPlaceholderContent("Profile")
+                BottomTab.Profile -> ProfileScreen(onNavigateBack = { selectedTab = BottomTab.Home })
             }
         }
     }

@@ -88,26 +88,6 @@ fun SearchScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "Search",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 18.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF1C1C1C)
-                )
-            )
-        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -122,6 +102,7 @@ fun SearchScreen(
                 modifier = Modifier.padding(16.dp)
             )
 
+<<<<<<< HEAD
             // Results area
             Box(
                 modifier = Modifier
@@ -133,6 +114,41 @@ fun SearchScreen(
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
+=======
+            // Search Results
+            if (state.isSearching) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (state.searchResults.isNotEmpty()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.searchResults) { pin ->
+                        val id = pin._id ?: ""
+                        val isSaved = state.savedPinIds.contains(id)
+                        PinItem(
+                            pin = pin,
+                            isSaved = isSaved,
+                            onClick = { /* TODO: Navigate to pin detail */ },
+                            onToggleSave = {
+                                if (id.isBlank()) return@PinItem
+                                if (isSaved) viewModel.unsavePin(id) else viewModel.savePin(id)
+                            },
+                            onDownload = { viewModel.downloadPin(pin._id) }
+                        )
+>>>>>>> 40a60d3cb3ec2585ec91588424bb3f6b59a375a1
                     }
                     state.searchResults.isNotEmpty() -> {
                         LazyVerticalGrid(
@@ -262,8 +278,9 @@ private fun SearchBar(
 @Composable
 private fun PinItem(
     pin: Pin,
+    isSaved: Boolean,
     onClick: () -> Unit,
-    onSave: () -> Unit,
+    onToggleSave: () -> Unit,
     onDownload: () -> Unit
 ) {
     Card(
@@ -301,7 +318,7 @@ private fun PinItem(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
-                        onClick = onSave,
+                        onClick = onToggleSave,
                         modifier = Modifier
                             .size(32.dp)
                             .background(
@@ -310,8 +327,8 @@ private fun PinItem(
                             )
                     ) {
                         Icon(
-                            Icons.Outlined.BookmarkBorder,
-                            contentDescription = "Save",
+                            if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = if (isSaved) "Saved" else "Save",
                             modifier = Modifier.size(16.dp),
                             tint = Color(0xFF1C1C1C)
                         )
