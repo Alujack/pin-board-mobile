@@ -41,26 +41,6 @@ fun SearchScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "Search",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 18.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color(0xFF1C1C1C)
-                )
-            )
-        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -96,10 +76,16 @@ fun SearchScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.searchResults) { pin ->
+                        val id = pin._id ?: ""
+                        val isSaved = state.savedPinIds.contains(id)
                         PinItem(
                             pin = pin,
+                            isSaved = isSaved,
                             onClick = { /* TODO: Navigate to pin detail */ },
-                            onSave = { viewModel.savePin(pin._id) },
+                            onToggleSave = {
+                                if (id.isBlank()) return@PinItem
+                                if (isSaved) viewModel.unsavePin(id) else viewModel.savePin(id)
+                            },
                             onDownload = { viewModel.downloadPin(pin._id) }
                         )
                     }
@@ -218,8 +204,9 @@ private fun SearchBar(
 @Composable
 private fun PinItem(
     pin: Pin,
+    isSaved: Boolean,
     onClick: () -> Unit,
-    onSave: () -> Unit,
+    onToggleSave: () -> Unit,
     onDownload: () -> Unit
 ) {
     Card(
@@ -254,7 +241,7 @@ private fun PinItem(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
-                        onClick = onSave,
+                        onClick = onToggleSave,
                         modifier = Modifier
                             .size(32.dp)
                             .background(
@@ -263,8 +250,8 @@ private fun PinItem(
                             )
                     ) {
                         Icon(
-                            Icons.Outlined.BookmarkBorder,
-                            contentDescription = "Save",
+                            if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = if (isSaved) "Saved" else "Save",
                             modifier = Modifier.size(16.dp),
                             tint = Color(0xFF1C1C1C)
                         )
