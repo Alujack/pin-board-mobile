@@ -341,7 +341,7 @@ private fun MediaItemCard(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(15.dp)
             ) {
                 ActionIcon(
                     icon = if (isSavedContext) Icons.Outlined.BookmarkRemove
