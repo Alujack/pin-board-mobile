@@ -19,6 +19,8 @@ interface PinRepository {
         link: String?,
         media: List<File>
     ): PinResult<Pin>
+
+
     
     // Search
     suspend fun searchPins(query: String): PinResult<List<Pin>>
