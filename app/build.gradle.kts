@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("com.google.dagger.hilt.android")
     kotlin("kapt")
+    id("com.google.gms.google-services")
+
 }
 
 android {
@@ -18,6 +20,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Networking: single source of truth for base URL
+        buildConfigField(
+            "String",
+            "API_BASE_URL",
+            "\"http:10.0.2.2:3000\""
+        )
     }
 
     buildTypes {
@@ -38,6 +46,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -152,6 +161,7 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.androidx.ui)
     kapt(libs.hilt.android.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
@@ -179,6 +189,14 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+<<<<<<< HEAD
     // app/build.gradle.kts
     
+=======
+    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+    // Firebase Cloud Messaging (explicit version to avoid resolution issues)
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
+
+    // app/build.gradle.kts
+>>>>>>> 3fd45835a414839e5d7266d3a8bae96a231c7688
 }

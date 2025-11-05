@@ -10,7 +10,11 @@ import dagger.hilt.components.SingletonComponent
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.PinRepositoryImpl
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.PinApi
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
+<<<<<<< HEAD
 import retrofit2.Retrofit
+=======
+import kh.edu.rupp.fe.ite.pinboard.core.network.NetworkClient
+>>>>>>> 3fd45835a414839e5d7266d3a8bae96a231c7688
 import javax.inject.Singleton
 
 @Module
