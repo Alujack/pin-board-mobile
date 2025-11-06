@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.os.Environment
 import android.provider.MediaStore
+import com.google.gson.JsonSyntaxException
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.PinApi
@@ -74,9 +75,39 @@ class PinRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun searchPins(query: String): PinResult<List<Pin>> = runCatching {
-        PinResult.Success(api.searchPins(query))
-    }.getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
+    override suspend fun searchPins(query: String): PinResult<List<Pin>> {
+        return try {
+            val response = api.searchPins(query)
+
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: JsonSyntaxException) {
+            PinResult.Error("Invalid response format: ${e.message}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Search failed")
+        }
+    }
+
+    override suspend fun getAllPins(): PinResult<List<Pin>> {
+        return try {
+            val response = api.getAllPins()
+
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Failed to fetch pins")
+        }
+    }
 
     override suspend fun getCreatedImages(): PinResult<List<MediaItem>> = runCatching {
         val resp = api.getCreatedImages()
