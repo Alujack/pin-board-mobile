@@ -34,14 +34,22 @@ fun SearchScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
 
+    // Load all pins when screen opens
+    LaunchedEffect(Unit) {
+        viewModel.loadAllPins()
+    }
+
+    // Search when query changes
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) {
             viewModel.searchPins(searchQuery)
+        } else {
+            // Show all pins when search is empty
+            viewModel.loadAllPins()
         }
     }
 
-    Scaffold(
-    ) { paddingValues ->
+    Scaffold { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -56,94 +64,130 @@ fun SearchScreen(
             )
 
             // Search Results
-            if (state.isSearching) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else if (state.searchResults.isNotEmpty()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(state.searchResults) { pin ->
-                        val id = pin._id ?: ""
-                        val isSaved = state.savedPinIds.contains(id)
-                        PinItem(
-                            pin = pin,
-                            isSaved = isSaved,
-                            onClick = { /* TODO: Navigate to pin detail */ },
-                            onToggleSave = {
-                                if (id.isBlank()) return@PinItem
-                                if (isSaved) viewModel.unsavePin(id) else viewModel.savePin(id)
-                            },
-                            onDownload = { viewModel.downloadPin(pin._id) }
-                        )
+            when {
+                state.isSearching -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFFE60023))
                     }
                 }
-            } else if (searchQuery.isNotBlank() && !state.isSearching) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Outlined.SearchOff,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = Color(0xFF757575)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "No results found for \"$searchQuery\"",
-                            color = Color(0xFF757575),
-                            fontSize = 16.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
+
+                state.searchResults.isNotEmpty() -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(state.searchResults) { pin ->
+                            val id = pin._id ?: ""
+                            val isSaved = state.savedPinIds.contains(id)
+                            PinItem(
+                                pin = pin,
+                                isSaved = isSaved,
+                                onClick = { /* TODO: Navigate to pin detail */ },
+                                onToggleSave = {
+                                    if (id.isNotBlank()) {
+                                        if (isSaved) {
+                                            viewModel.unsavePin(id)
+                                        } else {
+                                            viewModel.savePin(id)
+                                        }
+                                    }
+                                },
+                                onDownload = {
+                                    pin._id?.let { viewModel.downloadPin(it) }
+                                }
+                            )
+                        }
                     }
                 }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Outlined.Search,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = Color(0xFF757575)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Search for pins",
-                            color = Color(0xFF757575),
-                            fontSize = 16.sp
-                        )
+
+                searchQuery.isNotBlank() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.SearchOff,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = Color(0xFF9E9E9E)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No results found",
+                                color = Color(0xFF424242),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Try searching for something else",
+                                color = Color(0xFF757575),
+                                fontSize = 14.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = Color(0xFF9E9E9E)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Search for pins",
+                                color = Color(0xFF424242),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Discover ideas and inspiration",
+                                color = Color(0xFF757575),
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }
 
             // Error Message
-            if (state.errorMessage != null) {
+            state.errorMessage?.let { errorMsg ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -154,14 +198,19 @@ fun SearchScreen(
                             contentDescription = null,
                             tint = Color(0xFFD32F2F)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = state.errorMessage ?: "",
+                            text = errorMsg,
                             color = Color(0xFFD32F2F),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            fontSize = 14.sp
                         )
                         IconButton(onClick = { viewModel.clearError() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Dismiss")
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = Color(0xFFD32F2F)
+                            )
                         }
                     }
                 }
@@ -183,20 +232,29 @@ private fun SearchBar(
         modifier = modifier.fillMaxWidth(),
         placeholder = { Text("Search pins...") },
         leadingIcon = {
-            Icon(Icons.Outlined.Search, contentDescription = "Search")
+            Icon(
+                Icons.Outlined.Search,
+                contentDescription = "Search",
+                tint = Color(0xFF757575)
+            )
         },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    Icon(
+                        Icons.Default.Clear,
+                        contentDescription = "Clear",
+                        tint = Color(0xFF757575)
+                    )
                 }
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Color(0xFFE60023),
-            unfocusedBorderColor = Color(0xFFE0E0E0)
+            unfocusedBorderColor = Color(0xFFE0E0E0),
+            cursorColor = Color(0xFFE60023)
         )
     )
 }
@@ -213,79 +271,127 @@ private fun PinItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+        ) {
             // Pin Image
             AsyncImage(
-                model = pin.imageUrl ?: pin.videoUrl,
+                model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
                 contentDescription = pin.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
 
-            // Overlay with actions
+            // Gradient overlay for better text readability
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.7f)
+                            ),
+                            startY = 0f,
+                            endY = Float.POSITIVE_INFINITY
+                        )
+                    )
+            )
+
+            // Top actions
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Top actions
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // Save button
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.95f),
+                    shadowElevation = 2.dp
                 ) {
                     IconButton(
                         onClick = onToggleSave,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(
-                                Color.White.copy(alpha = 0.9f),
-                                RoundedCornerShape(16.dp)
-                            )
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         Icon(
-                            if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            imageVector = if (isSaved) {
+                                Icons.Filled.Bookmark
+                            } else {
+                                Icons.Outlined.BookmarkBorder
+                            },
                             contentDescription = if (isSaved) "Saved" else "Save",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF1C1C1C)
-                        )
-                    }
-                    IconButton(
-                        onClick = onDownload,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .background(
-                                Color.White.copy(alpha = 0.9f),
-                                RoundedCornerShape(16.dp)
-                            )
-                    ) {
-                        Icon(
-                            Icons.Outlined.Download,
-                            contentDescription = "Download",
-                            modifier = Modifier.size(16.dp),
-                            tint = Color(0xFF1C1C1C)
+                            modifier = Modifier.size(18.dp),
+                            tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C)
                         )
                     }
                 }
 
-                // Bottom title
+                // Download button
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color.White.copy(alpha = 0.95f),
+                    shadowElevation = 2.dp
+                ) {
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            Icons.Outlined.Download,
+                            contentDescription = "Download",
+                            modifier = Modifier.size(18.dp),
+                            tint = Color(0xFF1C1C1C)
+                        )
+                    }
+                }
+            }
+
+            // Bottom info
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
                 Text(
                     text = pin.title,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(8.dp),
                     color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                pin.user?.let { user ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color.White.copy(alpha = 0.9f)
+                        )
+                        Text(
+                            text = user.username,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }

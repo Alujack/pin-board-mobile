@@ -4,6 +4,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.ApiListResponse
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.PinResponse
 import okhttp3.ResponseBody
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -16,7 +17,12 @@ interface PinApi {
     suspend fun getSavedMedia(): ApiListResponse<MediaItem>
 
     @GET("api/pins/search")
-    suspend fun searchPins(@Query("search") query: String): List<Pin>
+    suspend fun searchPins(
+        @Query("q") query: String
+    ): PinResponse
+
+    @GET("api/pins")
+    suspend fun getAllPins(): PinResponse
 
     @POST("api/pins/{id}/save")
     suspend fun savePin(@Path("id") id: String): Response<Unit>
