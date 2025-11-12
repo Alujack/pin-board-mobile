@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.os.Environment
 import android.provider.MediaStore
+import com.google.gson.JsonSyntaxException
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.PinApi
@@ -15,6 +16,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.io.File
 import java.io.IOException
@@ -29,9 +31,11 @@ class PinRepositoryImpl @Inject constructor(
     private val appContext: Context
 ) : PinRepository {
 
-    override suspend fun getBoards(): PinResult<List<Board>> {
-        return PinResult.Error("Not implemented")
-    }
+    override suspend fun getBoards(): PinResult<List<Board>> = runCatching {
+        val resp = api.getBoards()
+        val list = resp.data ?: emptyList()
+        PinResult.Success(list)
+    }.getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
 
     override suspend fun createPin(
         title: String,
@@ -39,13 +43,71 @@ class PinRepositoryImpl @Inject constructor(
         description: String,
         link: String?,
         media: List<File>
-    ): PinResult<Pin> {
-        return PinResult.Error("Not implemented")
+    ): PinResult<Pin> = withContext(Dispatchers.IO) {
+        try {
+            val textMime = "text/plain".toMediaType()
+            val titleRb = title.toRequestBody(textMime)
+            val boardRb = board.toRequestBody(textMime)
+            val descRb = description.toRequestBody(textMime)
+            val linkRb = link?.takeIf { it.isNotBlank() }?.toRequestBody(textMime)
+
+            val parts = media.map { file ->
+                val mime = when {
+                    file.name.endsWith(".png", true) -> "image/png"
+                    file.name.endsWith(".webp", true) -> "image/webp"
+                    file.name.endsWith(".gif", true) -> "image/gif"
+                    else -> "image/jpeg"
+                }.toMediaType()
+                val body = file.asRequestBody(mime)
+                MultipartBody.Part.createFormData("media", file.name, body)
+            }
+
+            val created = api.createPin(
+                title = titleRb,
+                board = boardRb,
+                description = descRb,
+                link = linkRb,
+                media = parts
+            )
+            PinResult.Success(created)
+        } catch (e: Throwable) {
+            PinResult.Error(e.toReadableMessage())
+        }
     }
 
-    override suspend fun searchPins(query: String): PinResult<List<Pin>> = runCatching {
-        PinResult.Success(api.searchPins(query))
-    }.getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
+    override suspend fun searchPins(query: String): PinResult<List<Pin>> {
+        return try {
+            val response = api.searchPins(query)
+
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: JsonSyntaxException) {
+            PinResult.Error("Invalid response format: ${e.message}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Search failed")
+        }
+    }
+
+    override suspend fun getAllPins(): PinResult<List<Pin>> {
+        return try {
+            val response = api.getAllPins()
+
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Failed to fetch pins")
+        }
+    }
 
     override suspend fun getCreatedImages(): PinResult<List<MediaItem>> = runCatching {
         val resp = api.getCreatedImages()

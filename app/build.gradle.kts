@@ -22,7 +22,7 @@ android {
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"http:192.168.1.30:3000\""
+            "\"https://pin-board-backend-git-master-alujacks-projects.vercel.app/\""
         )
     }
 
@@ -44,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

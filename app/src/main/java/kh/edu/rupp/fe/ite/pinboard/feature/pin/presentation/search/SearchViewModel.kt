@@ -14,6 +14,7 @@ import javax.inject.Inject
 
 data class SearchState(
     val searchResults: List<Pin> = emptyList(),
+    val allPins: List<Pin> = emptyList(), // Store all pins
     val savedPinIds: Set<String> = emptySet(),
     val isSearching: Boolean = false,
     val isSaving: Boolean = false,
@@ -30,10 +31,56 @@ class SearchViewModel @Inject constructor(
     private val _state = MutableStateFlow(SearchState())
     val state: StateFlow<SearchState> = _state.asStateFlow()
 
+    init {
+        // Load saved pins on initialization
+        loadSavedPins()
+    }
+
+    private fun loadSavedPins() {
+        viewModelScope.launch {
+            when (val saved = pinRepository.getSavedMedia()) {
+                is PinResult.Success -> {
+                    _state.value = _state.value.copy(
+                        savedPinIds = saved.data.mapNotNull { it.pinId }.toSet()
+                    )
+                }
+                else -> {}
+            }
+        }
+    }
+
+    // Load all pins (when screen opens or search is cleared)
+    fun loadAllPins() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                isSearching = true,
+                errorMessage = null
+            )
+
+            when (val result = pinRepository.getAllPins()) {
+                is PinResult.Success -> {
+                    _state.value = _state.value.copy(
+                        isSearching = false,
+                        searchResults = result.data,
+                        allPins = result.data
+                    )
+                    loadSavedPins()
+                }
+                is PinResult.Error -> {
+                    _state.value = _state.value.copy(
+                        isSearching = false,
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    // Search pins by query
     fun searchPins(query: String) {
         if (query.isBlank()) {
             _state.value = _state.value.copy(
-                searchResults = emptyList(),
+                searchResults = _state.value.allPins,
                 currentSearchQuery = "",
                 isSearching = false
             )
@@ -53,19 +100,12 @@ class SearchViewModel @Inject constructor(
                         isSearching = false,
                         searchResults = result.data
                     )
-                    // refresh saved ids alongside results for toggle state
-                    when (val saved = pinRepository.getSavedMedia()) {
-                        is PinResult.Success -> {
-                            _state.value = _state.value.copy(
-                                savedPinIds = saved.data.mapNotNull { it.pinId }.toSet()
-                            )
-                        }
-                        else -> {}
-                    }
+                    loadSavedPins()
                 }
                 is PinResult.Error -> {
                     _state.value = _state.value.copy(
                         isSearching = false,
+                        searchResults = emptyList(),
                         errorMessage = result.message
                     )
                 }
@@ -84,7 +124,11 @@ class SearchViewModel @Inject constructor(
             when (val result = pinRepository.savePin(pinId)) {
                 is PinResult.Success -> {
                     val updated = _state.value.savedPinIds + pinId
-                    _state.value = _state.value.copy(isSaving = false, errorMessage = null, savedPinIds = updated)
+                    _state.value = _state.value.copy(
+                        isSaving = false,
+                        errorMessage = null,
+                        savedPinIds = updated
+                    )
                 }
                 is PinResult.Error -> {
                     _state.value = _state.value.copy(
@@ -107,7 +151,11 @@ class SearchViewModel @Inject constructor(
             when (val result = pinRepository.unsavePin(pinId)) {
                 is PinResult.Success -> {
                     val updated = _state.value.savedPinIds - pinId
-                    _state.value = _state.value.copy(isSaving = false, errorMessage = null, savedPinIds = updated)
+                    _state.value = _state.value.copy(
+                        isSaving = false,
+                        errorMessage = null,
+                        savedPinIds = updated
+                    )
                 }
                 is PinResult.Error -> {
                     _state.value = _state.value.copy(
@@ -119,7 +167,12 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun downloadPin(pinId: String) {
+    fun downloadPin(pinId: String?) {
+        if (pinId.isNullOrBlank()) {
+            _state.value = _state.value.copy(errorMessage = "Invalid pin id")
+            return
+        }
+
         viewModelScope.launch {
             _state.value = _state.value.copy(isDownloading = true, errorMessage = null)
 

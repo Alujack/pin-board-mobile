@@ -12,6 +12,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kh.edu.rupp.fe.ite.pinboard.BuildConfig
 
 @Singleton
 class NetworkClient @Inject constructor(
@@ -20,7 +21,7 @@ class NetworkClient @Inject constructor(
     
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:3000/")
+            .baseUrl(BuildConfig.API_BASE_URL)
             .client(createOkHttpClient())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -95,7 +96,7 @@ class NetworkClient @Inject constructor(
 
                     // Create a temporary Retrofit instance for the refresh call
                     val tempRetrofit = Retrofit.Builder()
-                        .baseUrl("http://10.0.2.2:3000/")
+                        .baseUrl(BuildConfig.API_BASE_URL)
                         .addConverterFactory(GsonConverterFactory.create())
                         .client(OkHttpClient()) // Use a basic client for the refresh call
                         .build()

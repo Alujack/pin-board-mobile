@@ -31,4 +31,5 @@ interface PinRepository {
     suspend fun savePin(pinId: String): PinResult<Unit>
     suspend fun unsavePin(pinId: String): PinResult<Unit>
     suspend fun downloadPin(pinId: String): PinResult<Unit>
+    suspend fun getAllPins(): PinResult<List<Pin>>
 }
