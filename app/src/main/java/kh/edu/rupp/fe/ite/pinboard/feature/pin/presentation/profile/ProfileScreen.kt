@@ -60,7 +60,7 @@ fun ProfileScreen(
     ) {
         // --- Profile Header ---
         ProfileHeader(
-            username = "Your Username",
+            username = state.username.ifBlank { "" },
             followersCount = 1250,
             followingCount = 89,
             pinsCount = state.createdMedia.size,

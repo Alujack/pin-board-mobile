@@ -22,7 +22,7 @@ android {
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"https://pin-board-backend-git-master-alujacks-projects.vercel.app/\""
+            "\"http://10.0.2.2:3000/\""
         )
     }
 

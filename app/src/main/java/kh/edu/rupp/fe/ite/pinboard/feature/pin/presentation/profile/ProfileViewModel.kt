@@ -7,6 +7,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,12 +25,14 @@ data class ProfileState(
     val isSaving: Boolean = false,
     val isDownloading: Boolean = false,
     val errorMessage: String? = null,
-    val currentSearchQuery: String = ""
+    val currentSearchQuery: String = "",
+    val username: String = ""
 )
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val pinRepository: PinRepository
+    private val pinRepository: PinRepository,
+    private val authApi: AuthApi
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState())
@@ -39,6 +42,18 @@ class ProfileViewModel @Inject constructor(
         // Load initial data
         loadCreatedMedia()
         loadSavedMedia()
+        loadProfile()
+    }
+
+    private fun loadProfile() {
+        viewModelScope.launch {
+            try {
+                val me = authApi.me()
+                _state.update { it.copy(username = me.username) }
+            } catch (e: Exception) {
+                _state.update { it.copy(errorMessage = e.message ?: "Failed to load profile") }
+            }
+        }
     }
 
     /** ----------------------- LOAD CREATED MEDIA ----------------------- */
