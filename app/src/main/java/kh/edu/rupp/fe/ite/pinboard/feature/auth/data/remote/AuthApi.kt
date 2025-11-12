@@ -3,6 +3,7 @@ package kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface AuthApi {
@@ -15,6 +16,10 @@ interface AuthApi {
 
     @POST("api/auth/refresh")
     suspend fun refreshToken(@Body request: RefreshTokenRequest): Response<RefreshTokenResponse>
+
+    // Current authenticated user
+    @GET("api/auth/me")
+    suspend fun me(): MeResponse
 }
 
 // Request models
@@ -69,5 +74,19 @@ data class UserDto(
     val status: String?,
     val createdAt: String?,
     val updatedAt: String?,
+    val id: String?
+)
+
+// /auth/me response model
+data class MeResponse(
+    val _id: String,
+    val username: String,
+    val role: String?,
+    val status: String?,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val __v: Int?,
+    val saved_pins: List<String>?,
+    val is_active: String?,
     val id: String?
 )
