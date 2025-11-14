@@ -7,7 +7,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.PinRepositoryImpl
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.repository.PinRepositoryImpl
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.PinApi
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
 import retrofit2.Retrofit

@@ -175,10 +175,17 @@ class PinRepositoryImpl @Inject constructor(
 
     override suspend fun getPinById(pinId: String): PinResult<Pin> {
         return try {
-            val pin = api.getPinById(pinId)
-            PinResult.Success(pin)
+            val response = api.getPinById(pinId)
+
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
         } catch (e: HttpException) {
             PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: JsonSyntaxException) {
+            PinResult.Error("Invalid response format: ${e.message}")
         } catch (e: Exception) {
             PinResult.Error(e.message ?: "Failed to fetch pin details")
         }
