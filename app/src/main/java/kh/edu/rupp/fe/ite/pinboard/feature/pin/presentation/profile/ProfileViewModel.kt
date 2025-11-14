@@ -8,6 +8,10 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SearchPinsUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.DownloadPinUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,8 +35,12 @@ data class ProfileState(
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val pinRepository: PinRepository,
-    private val authApi: AuthApi
+    private val pinRepository: PinRepository, // Still needed for media endpoints
+    private val authApi: AuthApi,
+    private val searchPinsUseCase: SearchPinsUseCase,
+    private val savePinUseCase: SavePinUseCase,
+    private val unsavePinUseCase: UnsavePinUseCase,
+    private val downloadPinUseCase: DownloadPinUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState())
@@ -110,7 +118,7 @@ class ProfileViewModel @Inject constructor(
                 it.copy(isSearching = true, currentSearchQuery = query, errorMessage = null)
             }
 
-            when (val result = pinRepository.searchPins(query)) {
+            when (val result = searchPinsUseCase(query)) {
                 is PinResult.Success -> _state.update {
                     it.copy(isSearching = false, searchResults = result.data)
                 }
@@ -123,15 +131,10 @@ class ProfileViewModel @Inject constructor(
 
     /** ----------------------- SAVE PIN ----------------------- */
     fun savePin(pinId: String) {
-        if (pinId.isBlank()) {
-            _state.update { it.copy(errorMessage = "Invalid pin id") }
-            return
-        }
-
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, errorMessage = null) }
 
-            when (val result = pinRepository.savePin(pinId)) {
+            when (val result = savePinUseCase(pinId)) {
                 is PinResult.Success -> {
                     _state.update { current ->
                         val updatedIds = current.savedPinIds + pinId
@@ -153,15 +156,10 @@ class ProfileViewModel @Inject constructor(
 
     /** ----------------------- UNSAVE PIN ----------------------- */
     fun unsavePin(pinId: String) {
-        if (pinId.isBlank()) {
-            _state.update { it.copy(errorMessage = "Invalid pin id") }
-            return
-        }
-
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true, errorMessage = null) }
 
-            when (val result = pinRepository.unsavePin(pinId)) {
+            when (val result = unsavePinUseCase(pinId)) {
                 is PinResult.Success -> {
                     _state.update { current ->
                         val updatedIds = current.savedPinIds - pinId
@@ -185,15 +183,10 @@ class ProfileViewModel @Inject constructor(
 
     /** ----------------------- DOWNLOAD PIN ----------------------- */
     fun downloadPin(pinId: String) {
-        if (pinId.isBlank()) {
-            _state.update { it.copy(errorMessage = "Invalid pin id") }
-            return
-        }
-
         viewModelScope.launch {
             _state.update { it.copy(isDownloading = true, errorMessage = null) }
 
-            when (val result = pinRepository.downloadPin(pinId)) {
+            when (val result = downloadPinUseCase(pinId)) {
                 is PinResult.Success -> _state.update {
                     it.copy(isDownloading = false, errorMessage = null)
                 }

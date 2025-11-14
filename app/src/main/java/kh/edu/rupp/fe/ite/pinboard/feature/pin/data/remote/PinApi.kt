@@ -24,6 +24,9 @@ interface PinApi {
     @GET("api/pins")
     suspend fun getAllPins(): PinResponse
 
+    @GET("api/pins/{id}")
+    suspend fun getPinById(@Path("id") id: String): Pin
+
     @POST("api/pins/{id}/save")
     suspend fun savePin(@Path("id") id: String): Response<Unit>
 
@@ -42,6 +45,12 @@ interface PinApi {
     // Boards
     @GET("api/boards")
     suspend fun getBoards(): ApiListResponse<Board>
+
+    @GET("api/boards/{id}")
+    suspend fun getBoardById(@Path("id") id: String): Board
+
+    @GET("api/boards/{id}/pins")
+    suspend fun getPinsByBoard(@Path("id") boardId: String): PinResponse
 
     // Create pin with multipart upload
     @Multipart
