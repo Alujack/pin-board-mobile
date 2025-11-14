@@ -5,6 +5,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.ApiListResponse
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.PinResponse
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.SinglePinResponse
 import okhttp3.ResponseBody
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -23,6 +24,9 @@ interface PinApi {
 
     @GET("api/pins")
     suspend fun getAllPins(): PinResponse
+
+    @GET("api/pins/detail/{id}")
+    suspend fun getPinById(@Path("id") id: String): SinglePinResponse
 
     @POST("api/pins/{id}/save")
     suspend fun savePin(@Path("id") id: String): Response<Unit>
@@ -43,9 +47,15 @@ interface PinApi {
     @GET("api/boards")
     suspend fun getBoards(): ApiListResponse<Board>
 
+    @GET("api/boards/{id}")
+    suspend fun getBoardById(@Path("id") id: String): Board
+
+    @GET("api/boards/{id}/pins")
+    suspend fun getPinsByBoard(@Path("id") boardId: String): PinResponse
+
     // Create pin with multipart upload
     @Multipart
-    @POST("api/pins")
+    @POST("api/pins/create")
     suspend fun createPin(
         @Part("title") title: RequestBody,
         @Part("board") board: RequestBody,

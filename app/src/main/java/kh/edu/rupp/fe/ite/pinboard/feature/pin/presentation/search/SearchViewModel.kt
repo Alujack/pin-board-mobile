@@ -5,6 +5,11 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetAllPinsUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SearchPinsUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.DownloadPinUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +30,12 @@ data class SearchState(
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val pinRepository: PinRepository
+    private val getAllPinsUseCase: GetAllPinsUseCase,
+    private val searchPinsUseCase: SearchPinsUseCase,
+    private val savePinUseCase: SavePinUseCase,
+    private val unsavePinUseCase: UnsavePinUseCase,
+    private val downloadPinUseCase: DownloadPinUseCase,
+    private val pinRepository: PinRepository // For saved media
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchState())
@@ -57,7 +67,7 @@ class SearchViewModel @Inject constructor(
                 errorMessage = null
             )
 
-            when (val result = pinRepository.getAllPins()) {
+            when (val result = getAllPinsUseCase()) {
                 is PinResult.Success -> {
                     _state.value = _state.value.copy(
                         isSearching = false,
@@ -94,7 +104,7 @@ class SearchViewModel @Inject constructor(
                 errorMessage = null
             )
 
-            when (val result = pinRepository.searchPins(query)) {
+            when (val result = searchPinsUseCase(query)) {
                 is PinResult.Success -> {
                     _state.value = _state.value.copy(
                         isSearching = false,
@@ -114,14 +124,10 @@ class SearchViewModel @Inject constructor(
     }
 
     fun savePin(pinId: String) {
-        if (pinId.isBlank()) {
-            _state.value = _state.value.copy(errorMessage = "Invalid pin id")
-            return
-        }
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true, errorMessage = null)
 
-            when (val result = pinRepository.savePin(pinId)) {
+            when (val result = savePinUseCase(pinId)) {
                 is PinResult.Success -> {
                     val updated = _state.value.savedPinIds + pinId
                     _state.value = _state.value.copy(
@@ -141,14 +147,10 @@ class SearchViewModel @Inject constructor(
     }
 
     fun unsavePin(pinId: String) {
-        if (pinId.isBlank()) {
-            _state.value = _state.value.copy(errorMessage = "Invalid pin id")
-            return
-        }
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true, errorMessage = null)
 
-            when (val result = pinRepository.unsavePin(pinId)) {
+            when (val result = unsavePinUseCase(pinId)) {
                 is PinResult.Success -> {
                     val updated = _state.value.savedPinIds - pinId
                     _state.value = _state.value.copy(
@@ -168,15 +170,12 @@ class SearchViewModel @Inject constructor(
     }
 
     fun downloadPin(pinId: String?) {
-        if (pinId.isNullOrBlank()) {
-            _state.value = _state.value.copy(errorMessage = "Invalid pin id")
-            return
-        }
+        if (pinId.isNullOrBlank()) return
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isDownloading = true, errorMessage = null)
 
-            when (val result = pinRepository.downloadPin(pinId)) {
+            when (val result = downloadPinUseCase(pinId)) {
                 is PinResult.Success -> {
                     _state.value = _state.value.copy(
                         isDownloading = false,

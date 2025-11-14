@@ -1,4 +1,4 @@
-package kh.edu.rupp.fe.ite.pinboard.feature.pin.data
+package kh.edu.rupp.fe.ite.pinboard.feature.pin.data.repository
 
 import android.content.ContentValues
 import android.content.Context
@@ -171,6 +171,50 @@ class PinRepositoryImpl @Inject constructor(
         is HttpException -> "Network error ${code()}"
         is IOException -> "Connection error"
         else -> message ?: "Unknown error"
+    }
+
+    override suspend fun getPinById(pinId: String): PinResult<Pin> {
+        return try {
+            val response = api.getPinById(pinId)
+
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: JsonSyntaxException) {
+            PinResult.Error("Invalid response format: ${e.message}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Failed to fetch pin details")
+        }
+    }
+
+    override suspend fun getBoardById(boardId: String): PinResult<Board> {
+        return try {
+            val board = api.getBoardById(boardId)
+            PinResult.Success(board)
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Failed to fetch board details")
+        }
+    }
+
+    override suspend fun getPinsByBoard(boardId: String): PinResult<List<Pin>> {
+        return try {
+            val response = api.getPinsByBoard(boardId)
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Failed to fetch board pins")
+        }
     }
 
     private fun timestamp(): String =

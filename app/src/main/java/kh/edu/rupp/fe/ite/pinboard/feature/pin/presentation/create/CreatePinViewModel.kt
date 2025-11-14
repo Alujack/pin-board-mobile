@@ -5,7 +5,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.CreatePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetBoardsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +32,8 @@ enum class CreatePinStep { MEDIA, DETAILS, BOARD }
 
 @HiltViewModel
 class CreatePinViewModel @Inject constructor(
-    private val pinRepository: PinRepository
+    private val createPinUseCase: CreatePinUseCase,
+    private val getBoardsUseCase: GetBoardsUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CreatePinState())
@@ -101,39 +103,16 @@ class CreatePinViewModel @Inject constructor(
     fun createPin() {
         val currentState = _state.value
 
-        // Validation
-        if (currentState.title.isBlank()) {
-            _state.value = currentState.copy(errorMessage = "Title is required")
-            return
-        }
-
-        if (currentState.description.isBlank()) {
-            _state.value = currentState.copy(errorMessage = "Description is required")
-            return
-        }
-
+        // Basic validation (use case will do more)
         if (currentState.selectedBoard == null) {
             _state.value = currentState.copy(errorMessage = "Please select a board")
-            return
-        }
-
-        if (currentState.selectedFiles.isEmpty()) {
-            _state.value = currentState.copy(errorMessage = "Please select at least one file")
-            return
-        }
-
-        // Check file size (100MB limit)
-        val maxSize = 100 * 1024 * 1024L // 100MB in bytes
-        val oversizedFiles = currentState.selectedFiles.filter { it.length() > maxSize }
-        if (oversizedFiles.isNotEmpty()) {
-            _state.value = currentState.copy(errorMessage = "Files must be smaller than 100MB")
             return
         }
 
         viewModelScope.launch {
             _state.value = currentState.copy(isCreating = true, errorMessage = null)
 
-            when (val result = pinRepository.createPin(
+            when (val result = createPinUseCase(
                 title = currentState.title,
                 board = currentState.selectedBoard!!._id,
                 description = currentState.description,
@@ -160,7 +139,7 @@ class CreatePinViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, errorMessage = null)
 
-            when (val result = pinRepository.getBoards()) {
+            when (val result = getBoardsUseCase()) {
                 is PinResult.Success -> {
                     _state.value = _state.value.copy(
                         isLoading = false,
