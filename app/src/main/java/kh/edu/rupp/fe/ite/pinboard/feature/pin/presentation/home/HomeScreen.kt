@@ -7,16 +7,12 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,7 +29,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -41,17 +36,11 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = uiState.isRefreshing,
-        onRefresh = { viewModel.refreshPins() }
-    )
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
-            .pullRefresh(pullRefreshState)
     ) {
         when {
             uiState.isLoading && uiState.pins.isEmpty() -> {
@@ -65,34 +54,35 @@ fun HomeScreen(
                 )
             }
             else -> {
-                // Pin grid
-                LazyVerticalStaggeredGrid(
-                    columns = StaggeredGridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalItemSpacing = 8.dp
-                ) {
-                    items(uiState.pins) { pin ->
-                        PinCard(
-                            pin = pin,
-                            isSaved = uiState.savedPinIds.contains(pin._id ?: ""),
-                            onClick = { onPinClick(pin._id ?: "") },
-                            onToggleSave = { viewModel.toggleSavePin(pin._id ?: "") }
+                // Pin grid with swipe refresh
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Refresh button
+                    if (uiState.isRefreshing) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFFE60023)
                         )
+                    }
+                    
+                    LazyVerticalStaggeredGrid(
+                        columns = StaggeredGridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalItemSpacing = 8.dp
+                    ) {
+                        items(uiState.pins) { pin ->
+                            PinCard(
+                                pin = pin,
+                                isSaved = uiState.savedPinIds.contains(pin._id ?: ""),
+                                onClick = { onPinClick(pin._id ?: "") },
+                                onToggleSave = { viewModel.toggleSavePin(pin._id ?: "") }
+                            )
+                        }
                     }
                 }
             }
         }
-
-        // Pull refresh indicator
-        PullRefreshIndicator(
-            refreshing = uiState.isRefreshing,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter),
-            backgroundColor = Color.White,
-            contentColor = Color(0xFFE60023)
-        )
 
         // Error message
         uiState.errorMessage?.let { error ->

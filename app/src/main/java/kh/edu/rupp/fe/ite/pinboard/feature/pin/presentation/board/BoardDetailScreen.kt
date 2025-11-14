@@ -7,14 +7,10 @@ import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,70 +26,64 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BoardDetailScreen(
-    onNavigateBack: () -> Unit,
-    onPinClick: (String) -> Unit = {},
-    viewModel: BoardDetailViewModel = hiltViewModel()
+        onNavigateBack: () -> Unit,
+        onPinClick: (String) -> Unit = {},
+        viewModel: BoardDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = uiState.isRefreshing,
-        onRefresh = { viewModel.refreshBoard() }
-    )
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = uiState.board?.name ?: "Board",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* TODO: Edit board */ }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit")
-                    }
-                    IconButton(onClick = { /* TODO: Share board */ }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
+            topBar = {
+                TopAppBar(
+                        title = {
+                            Text(
+                                    text = uiState.board?.name ?: "Board",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onNavigateBack) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            }
+                        },
+                        actions = {
+                            if (uiState.isRefreshing) {
+                                CircularProgressIndicator(
+                                        modifier = Modifier.padding(horizontal = 16.dp).size(24.dp),
+                                        color = Color(0xFFE60023),
+                                        strokeWidth = 2.dp
+                                )
+                            }
+                            IconButton(onClick = { viewModel.refreshBoard() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                            }
+                            IconButton(onClick = { /* TODO: Edit board */}) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit")
+                            }
+                            IconButton(onClick = { /* TODO: Share board */}) {
+                                Icon(Icons.Default.Share, contentDescription = "Share")
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
                 )
-            )
-        }
+            }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .pullRefresh(pullRefreshState)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {
                 uiState.isLoading -> {
                     LoadingView()
                 }
                 uiState.board != null -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFFF5F5F5))
-                    ) {
+                    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F5F5))) {
                         // Board Info Header
                         BoardInfoHeader(
-                            boardName = uiState.board!!.name,
-                            description = uiState.board!!.description,
-                            pinCount = uiState.pins.size
+                                boardName = uiState.board!!.name,
+                                description = uiState.board!!.description,
+                                pinCount = uiState.pins.size
                         )
 
                         // Pins Grid
@@ -101,18 +91,20 @@ fun BoardDetailScreen(
                             EmptyBoardView()
                         } else {
                             LazyVerticalStaggeredGrid(
-                                columns = StaggeredGridCells.Fixed(2),
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalItemSpacing = 8.dp
+                                    columns = StaggeredGridCells.Fixed(2),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalItemSpacing = 8.dp
                             ) {
                                 items(uiState.pins) { pin ->
                                     PinCard(
-                                        pin = pin,
-                                        isSaved = uiState.savedPinIds.contains(pin._id ?: ""),
-                                        onClick = { onPinClick(pin._id ?: "") },
-                                        onToggleSave = { viewModel.toggleSavePin(pin._id ?: "") }
+                                            pin = pin,
+                                            isSaved = uiState.savedPinIds.contains(pin._id ?: ""),
+                                            onClick = { onPinClick(pin._id ?: "") },
+                                            onToggleSave = {
+                                                viewModel.toggleSavePin(pin._id ?: "")
+                                            }
                                     )
                                 }
                             }
@@ -120,31 +112,17 @@ fun BoardDetailScreen(
                     }
                 }
                 uiState.errorMessage != null -> {
-                    ErrorView(
-                        message = uiState.errorMessage!!,
-                        onRetry = { viewModel.retry() }
-                    )
+                    ErrorView(message = uiState.errorMessage!!, onRetry = { viewModel.retry() })
                 }
             }
-
-            // Pull refresh indicator
-            PullRefreshIndicator(
-                refreshing = uiState.isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter),
-                backgroundColor = Color.White,
-                contentColor = Color(0xFFE60023)
-            )
 
             // Error Snackbar
             uiState.errorMessage?.let { error ->
                 if (uiState.board != null) {
                     ErrorSnackbar(
-                        message = error,
-                        onDismiss = { viewModel.clearError() },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(16.dp)
+                            message = error,
+                            onDismiss = { viewModel.clearError() },
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
                     )
                 }
             }
@@ -153,138 +131,109 @@ fun BoardDetailScreen(
 }
 
 @Composable
-private fun BoardInfoHeader(
-    boardName: String,
-    description: String?,
-    pinCount: Int
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
-        shadowElevation = 2.dp
-    ) {
+private fun BoardInfoHeader(boardName: String, description: String?, pinCount: Int) {
+    Surface(modifier = Modifier.fillMaxWidth(), color = Color.White, shadowElevation = 2.dp) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = boardName,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1C1C1C)
+                    text = boardName,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1C1C1C)
             )
-            
+
             description?.let { desc ->
                 if (desc.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = desc,
-                        fontSize = 14.sp,
-                        color = Color(0xFF757575),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            text = desc,
+                            fontSize = 14.sp,
+                            color = Color(0xFF757575),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "$pinCount pins",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF424242)
+                    text = "$pinCount pins",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF424242)
             )
         }
     }
 }
 
 @Composable
-private fun PinCard(
-    pin: Pin,
-    isSaved: Boolean,
-    onClick: () -> Unit,
-    onToggleSave: () -> Unit
-) {
+private fun PinCard(pin: Pin, isSaved: Boolean, onClick: () -> Unit, onToggleSave: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box {
             Column {
                 // Pin Image
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().height(200.dp)) {
                     AsyncImage(
-                        model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
-                        contentDescription = pin.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                            model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
+                            contentDescription = pin.title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                     )
 
                     // Save button overlay
                     Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(36.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        color = Color.White.copy(alpha = 0.95f),
-                        shadowElevation = 2.dp
+                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(36.dp),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.White.copy(alpha = 0.95f),
+                            shadowElevation = 2.dp
                     ) {
-                        IconButton(
-                            onClick = onToggleSave,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
+                        IconButton(onClick = onToggleSave, modifier = Modifier.fillMaxSize()) {
                             Icon(
-                                imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (isSaved) "Unsave" else "Save",
-                                tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
-                                modifier = Modifier.size(18.dp)
+                                    imageVector =
+                                            if (isSaved) Icons.Filled.Bookmark
+                                            else Icons.Outlined.BookmarkBorder,
+                                    contentDescription = if (isSaved) "Unsave" else "Save",
+                                    tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                                    modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                 }
 
                 // Pin Info
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
                     Text(
-                        text = pin.title,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1C1C1C),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                            text = pin.title,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1C1C1C),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                     )
 
                     pin.user?.let { user ->
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                Icons.Outlined.Person,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = Color(0xFF9E9E9E)
+                                    Icons.Outlined.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = Color(0xFF9E9E9E)
                             )
                             Text(
-                                text = user.username,
-                                fontSize = 12.sp,
-                                color = Color(0xFF9E9E9E),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                    text = user.username,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF9E9E9E),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -296,132 +245,92 @@ private fun PinCard(
 
 @Composable
 private fun LoadingView() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             CircularProgressIndicator(color = Color(0xFFE60023))
-            Text(
-                text = "Loading board...",
-                fontSize = 14.sp,
-                color = Color(0xFF757575)
-            )
+            Text(text = "Loading board...", fontSize = 14.sp, color = Color(0xFF757575))
         }
     }
 }
 
 @Composable
 private fun EmptyBoardView() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                Icons.Default.Dashboard,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = Color(0xFF9E9E9E)
+                    Icons.Default.Dashboard,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = Color(0xFF9E9E9E)
             )
             Text(
-                text = "No pins in this board yet",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF424242)
+                    text = "No pins in this board yet",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF424242)
             )
             Text(
-                text = "Start adding pins to organize your ideas",
-                fontSize = 14.sp,
-                color = Color(0xFF757575),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    text = "Start adding pins to organize your ideas",
+                    fontSize = 14.sp,
+                    color = Color(0xFF757575),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }
 }
 
 @Composable
-private fun ErrorView(
-    message: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
-        contentAlignment = Alignment.Center
-    ) {
+private fun ErrorView(message: String, onRetry: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
-                Icons.Default.Error,
-                contentDescription = null,
-                tint = Color(0xFFD32F2F),
-                modifier = Modifier.size(64.dp)
+                    Icons.Default.Error,
+                    contentDescription = null,
+                    tint = Color(0xFFD32F2F),
+                    modifier = Modifier.size(64.dp)
             )
             Text(
-                text = message,
-                fontSize = 16.sp,
-                color = Color(0xFF424242),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    text = message,
+                    fontSize = 16.sp,
+                    color = Color(0xFF424242),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
             Button(
-                onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE60023)
-                )
-            ) {
-                Text("Retry")
-            }
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE60023))
+            ) { Text("Retry") }
         }
     }
 }
 
 @Composable
-private fun ErrorSnackbar(
-    message: String,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun ErrorSnackbar(message: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-        shape = RoundedCornerShape(8.dp)
+            modifier = modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+            shape = RoundedCornerShape(8.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.Error,
-                contentDescription = null,
-                tint = Color(0xFFD32F2F)
-            )
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFD32F2F))
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = message,
-                color = Color(0xFFD32F2F),
-                modifier = Modifier.weight(1f),
-                fontSize = 14.sp
+                    text = message,
+                    color = Color(0xFFD32F2F),
+                    modifier = Modifier.weight(1f),
+                    fontSize = 14.sp
             )
             IconButton(onClick = onDismiss) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Dismiss",
-                    tint = Color(0xFFD32F2F)
-                )
+                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color(0xFFD32F2F))
             }
         }
     }
 }
-
