@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +24,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
+import android.content.Intent
+import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +34,7 @@ fun PinDetailScreen(
     viewModel: PinDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -60,7 +64,13 @@ fun PinDetailScreen(
                     PinDetailContent(
                         pin = uiState.pin!!,
                         isSaved = uiState.isSaved,
-                        onToggleSave = { viewModel.toggleSavePin() }
+                        isFollowing = uiState.isFollowing,
+                        isFollowLoading = uiState.isFollowLoading,
+                        isDownloading = uiState.isDownloading,
+                        onToggleSave = { viewModel.toggleSavePin() },
+                        onShare = { viewModel.onShareClicked() },
+                        onDownload = { viewModel.onDownloadClicked() },
+                        onFollow = { viewModel.onFollowClicked() }
                     )
                 }
                 uiState.errorMessage != null -> {
@@ -83,6 +93,32 @@ fun PinDetailScreen(
                     )
                 }
             }
+
+            // Share event: open system share sheet when pendingShareUrl is set
+            uiState.pendingShareUrl?.let { shareUrl ->
+                LaunchedEffect(shareUrl) {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareUrl)
+                    }
+                    val chooser = Intent.createChooser(intent, "Share pin")
+                    context.startActivity(chooser)
+                    viewModel.onShareHandled()
+                }
+            }
+
+            // Download success message
+            uiState.downloadMessage?.let { msg ->
+                if (uiState.pin != null) {
+                    SuccessSnackbar(
+                        message = msg,
+                        onDismiss = { viewModel.clearDownloadMessage() },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -91,7 +127,13 @@ fun PinDetailScreen(
 private fun PinDetailContent(
     pin: Pin,
     isSaved: Boolean,
-    onToggleSave: () -> Unit
+    isFollowing: Boolean,
+    isFollowLoading: Boolean,
+    isDownloading: Boolean,
+    onToggleSave: () -> Unit,
+    onShare: () -> Unit,
+    onDownload: () -> Unit,
+    onFollow: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -126,7 +168,11 @@ private fun PinDetailContent(
                 )
                 ActionButton(
                     icon = Icons.Outlined.Share,
-                    onClick = { /* TODO: Implement share */ }
+                    onClick = onShare
+                )
+                ActionButton(
+                    icon = if (isDownloading) Icons.Filled.Download else Icons.Outlined.Download,
+                    onClick = onDownload
                 )
                 ActionButton(
                     icon = Icons.Outlined.MoreVert,
@@ -244,13 +290,15 @@ private fun PinDetailContent(
                     Spacer(modifier = Modifier.weight(1f))
 
                     Button(
-                        onClick = { /* TODO: Follow user */ },
+                        onClick = onFollow,
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE60023)
+                            containerColor = if (isFollowing) Color(0xFFBDBDBD) else Color(0xFFE60023)
                         )
                     ) {
-                        Text("Follow")
+                        Text(
+                            text = if (isFollowing) "Following" else "Follow"
+                        )
                     }
                 }
             }
@@ -397,6 +445,44 @@ private fun ErrorSnackbar(
                     Icons.Default.Close,
                     contentDescription = "Dismiss",
                     tint = Color(0xFFD32F2F)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuccessSnackbar(
+    message: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = Color(0xFF388E3C)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = message,
+                color = Color(0xFF2E7D32),
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Dismiss",
+                    tint = Color(0xFF2E7D32)
                 )
             }
         }

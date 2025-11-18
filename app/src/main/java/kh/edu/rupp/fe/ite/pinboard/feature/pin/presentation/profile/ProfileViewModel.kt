@@ -24,6 +24,7 @@ data class ProfileState(
     val savedMedia: List<MediaItem> = emptyList(),
     val searchResults: List<Pin> = emptyList(),
     val savedPinIds: Set<String> = emptySet(),
+    val pinDetailsById: Map<String, Pin> = emptyMap(),
     val isLoading: Boolean = false,
     val isSearching: Boolean = false,
     val isSaving: Boolean = false,
@@ -70,13 +71,41 @@ class ProfileViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, errorMessage = null) }
 
             when (val result = pinRepository.getCreatedImages()) {
-                is PinResult.Success -> _state.update {
-                    it.copy(isLoading = false, createdMedia = result.data)
+                is PinResult.Success -> {
+                    _state.update {
+                        it.copy(isLoading = false, createdMedia = result.data)
+                    }
+                    preloadPinDetails(result.data)
                 }
                 is PinResult.Error -> _state.update {
                     it.copy(isLoading = false, errorMessage = result.message)
                 }
             }
+        }
+    }
+
+    /** ----------------------- PRELOAD PIN DETAILS ----------------------- */
+    private fun preloadPinDetails(mediaItems: List<MediaItem>) {
+        val pinIds = mediaItems.mapNotNull { it.pinId }.toSet()
+        if (pinIds.isEmpty()) return
+
+        viewModelScope.launch {
+            val currentMap = _state.value.pinDetailsById.toMutableMap()
+
+            for (pinId in pinIds) {
+                if (currentMap.containsKey(pinId)) continue
+
+                when (val result = pinRepository.getPinById(pinId)) {
+                    is PinResult.Success -> {
+                        currentMap[pinId] = result.data
+                    }
+                    is PinResult.Error -> {
+                        // Ignore individual failures; errors surface via other flows
+                    }
+                }
+            }
+
+            _state.update { it.copy(pinDetailsById = currentMap) }
         }
     }
 
@@ -86,12 +115,15 @@ class ProfileViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true, errorMessage = null) }
 
             when (val result = pinRepository.getSavedMedia()) {
-                is PinResult.Success -> _state.update {
-                    it.copy(
-                        isLoading = false,
-                        savedMedia = result.data,
-                        savedPinIds = result.data.mapNotNull { it.pinId }.toSet()
-                    )
+                is PinResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            savedMedia = result.data,
+                            savedPinIds = result.data.mapNotNull { it.pinId }.toSet()
+                        )
+                    }
+                    preloadPinDetails(result.data)
                 }
                 is PinResult.Error -> _state.update {
                     it.copy(isLoading = false, errorMessage = result.message)
