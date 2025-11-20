@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,13 +58,15 @@ fun EnhancedProfileScreen(
         topBar = {
             TopAppBar(
                 title = { Text(user.username) },
-                navigationIcon = if (!isCurrentUser) {
-                    {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                navigationIcon = {
+                    if (!isCurrentUser) {
+                        @androidx.compose.runtime.Composable {
+                            IconButton(onClick = onNavigateBack) {
+                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            }
                         }
-                    }
-                } else null,
+                    } else null
+                },
                 actions = {
                     if (isCurrentUser) {
                         IconButton(onClick = { /* TODO: Settings */ }) {

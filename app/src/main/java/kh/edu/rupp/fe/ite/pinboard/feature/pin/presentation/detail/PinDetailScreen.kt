@@ -242,11 +242,12 @@ private fun PinDetailContent(
             Spacer(modifier = Modifier.height(16.dp))
 
             // User Information
-            pin.user?.let { user ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            val user = pin.user
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                     // Avatar placeholder
                     Box(
                         modifier = Modifier
@@ -266,17 +267,26 @@ private fun PinDetailContent(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
-                        Text(
-                            text = user.username,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1C1C1C)
-                        )
-                        user.email?.let { email ->
+                        if (user != null) {
                             Text(
-                                text = email,
-                                fontSize = 14.sp,
-                                color = Color(0xFF757575)
+                                text = user.username,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1C1C1C)
+                            )
+                            if (!user.email.isNullOrBlank()) {
+                                Text(
+                                    text = user.email,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF757575)
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "Unknown User",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1C1C1C)
                             )
                         }
                     }
@@ -293,7 +303,6 @@ private fun PinDetailContent(
                         Text("Follow")
                     }
                 }
-            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

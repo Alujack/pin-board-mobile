@@ -3,7 +3,7 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model
 data class Comment(
     val _id: String,
     val pin: String,
-    val user: User,
+    val user: CommentUser,
     val content: String,
     val parent_comment: String? = null,
     val likes: List<String> = emptyList(),
@@ -15,7 +15,7 @@ data class Comment(
     val updatedAt: String
 )
 
-data class User(
+data class CommentUser(
     val _id: String,
     val username: String,
     val profile_picture: String? = null,

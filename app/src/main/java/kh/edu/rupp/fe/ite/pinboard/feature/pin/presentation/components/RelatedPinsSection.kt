@@ -3,8 +3,10 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridItemScope
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -65,6 +67,10 @@ fun RelatedPinsSection(
         }
     }
 }
+
+private fun LazyItemScope.onPinClick(p1: String?) {}
+
+private fun LazyItemScope.onSaveClick(p1: String?) {}
 
 @Composable
 fun RelatedPinCard(
@@ -190,6 +196,9 @@ fun RelatedPinsGrid(
         }
     }
 }
+
+private fun LazyStaggeredGridItemScope.onPinClick(p1: String?) {}
+private fun LazyStaggeredGridItemScope.onSaveClick(p1: String?) {}
 
 @Composable
 fun RelatedPinGridItem(
