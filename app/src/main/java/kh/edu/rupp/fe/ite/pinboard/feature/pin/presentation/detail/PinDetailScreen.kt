@@ -201,6 +201,46 @@ private fun PinDetailContent(
             Divider(color = Color(0xFFE0E0E0))
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Interaction Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Like Button
+                InteractionButton(
+                    icon = Icons.Default.Favorite,
+                    text = "Like",
+                    count = 0, // TODO: Get actual like count
+                    isActive = false,
+                    onClick = { /* TODO: Toggle like */ },
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Comment Button
+                InteractionButton(
+                    icon = Icons.Default.Comment,
+                    text = "Comment",
+                    count = 0, // TODO: Get actual comment count
+                    isActive = false,
+                    onClick = { /* TODO: Open comments */ },
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Share Button
+                InteractionButton(
+                    icon = Icons.Default.Share,
+                    text = "Share",
+                    count = null,
+                    isActive = false,
+                    onClick = { /* TODO: Share pin */ },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = Color(0xFFE0E0E0))
+            Spacer(modifier = Modifier.height(16.dp))
+
             // User Information
             pin.user?.let { user ->
                 Row(
@@ -303,6 +343,39 @@ private fun ActionButton(
                 modifier = Modifier.size(20.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun InteractionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    count: Int?,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isActive) Color(0xFFFFEBEE) else Color(0xFFF5F5F5),
+            contentColor = if (isActive) Color(0xFFE60023) else Color(0xFF666666)
+        ),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+    ) {
+        Icon(
+            icon,
+            contentDescription = text,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = if (count != null && count > 0) "$text ($count)" else text,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
