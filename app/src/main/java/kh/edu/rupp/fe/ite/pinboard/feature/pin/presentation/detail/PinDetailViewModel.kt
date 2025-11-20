@@ -4,11 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetPinByIdUseCase
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,8 +18,14 @@ import javax.inject.Inject
 data class PinDetailUiState(
     val pin: Pin? = null,
     val isSaved: Boolean = false,
+    val isLiked: Boolean = false,
+    val likesCount: Int = 0,
+    val commentsCount: Int = 0,
+    val comments: List<Comment> = emptyList(),
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val isLoadingComments: Boolean = false,
+    val errorMessage: String? = null,
+    val shareUrl: String? = null
 )
 
 @HiltViewModel
@@ -28,6 +33,10 @@ class PinDetailViewModel @Inject constructor(
     private val getPinByIdUseCase: GetPinByIdUseCase,
     private val savePinUseCase: SavePinUseCase,
     private val unsavePinUseCase: UnsavePinUseCase,
+    private val togglePinLikeUseCase: TogglePinLikeUseCase,
+    private val getCommentsUseCase: GetCommentsUseCase,
+    private val createCommentUseCase: CreateCommentUseCase,
+    private val sharePinUseCase: SharePinUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -38,6 +47,7 @@ class PinDetailViewModel @Inject constructor(
 
     init {
         loadPinDetails()
+        loadComments()
     }
 
     private fun loadPinDetails() {
@@ -71,6 +81,29 @@ class PinDetailViewModel @Inject constructor(
         }
     }
 
+    private fun loadComments() {
+        if (pinId.isNullOrBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingComments = true) }
+
+            when (val result = getCommentsUseCase(pinId)) {
+                is PinResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoadingComments = false,
+                            comments = result.data.data,
+                            commentsCount = result.data.data.size
+                        )
+                    }
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(isLoadingComments = false) }
+                }
+            }
+        }
+    }
+
     fun toggleSavePin() {
         val currentPin = _uiState.value.pin?._id ?: return
 
@@ -92,12 +125,64 @@ class PinDetailViewModel @Inject constructor(
         }
     }
 
+    fun toggleLike() {
+        val currentPin = _uiState.value.pin?._id ?: return
+
+        viewModelScope.launch {
+            when (val result = togglePinLikeUseCase(currentPin)) {
+                is PinResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLiked = result.data.isLiked,
+                            likesCount = result.data.likesCount
+                        )
+                    }
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
+    fun addComment(content: String, parentCommentId: String? = null) {
+        if (pinId.isNullOrBlank() || content.isBlank()) return
+
+        viewModelScope.launch {
+            when (val result = createCommentUseCase(pinId, content, parentCommentId)) {
+                is PinResult.Success -> {
+                    // Reload comments to get the updated list
+                    loadComments()
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
+    fun sharePin() {
+        val currentPin = _uiState.value.pin?._id ?: return
+
+        viewModelScope.launch {
+            when (val result = sharePinUseCase(currentPin)) {
+                is PinResult.Success -> {
+                    // Share was tracked successfully
+                    _uiState.update { it.copy(errorMessage = "Pin shared successfully!") }
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
 
     fun retry() {
         loadPinDetails()
+        loadComments()
     }
 }
-

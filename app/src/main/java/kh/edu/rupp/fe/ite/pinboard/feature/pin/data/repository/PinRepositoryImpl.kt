@@ -5,10 +5,8 @@ import android.content.Context
 import android.os.Environment
 import android.provider.MediaStore
 import com.google.gson.JsonSyntaxException
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.PinApi
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.*
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.*
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +18,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import java.io.File
 import java.io.IOException
-import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -28,6 +25,10 @@ import javax.inject.Inject
 
 class PinRepositoryImpl @Inject constructor(
     private val api: PinApi,
+    private val commentApi: CommentApi,
+    private val pinLikeApi: PinLikeApi,
+    private val shareApi: ShareApi,
+    private val notificationApi: NotificationApi,
     private val appContext: Context
 ) : PinRepository {
 
@@ -219,4 +220,180 @@ class PinRepositoryImpl @Inject constructor(
 
     private fun timestamp(): String =
         SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+
+    // Comments
+    override suspend fun getComments(pinId: String, page: Int, limit: Int): PinResult<CommentResponse> {
+        return try {
+            val response = commentApi.getComments(pinId, page, limit)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to fetch comments: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun createComment(pinId: String, content: String, parentCommentId: String?): PinResult<Comment> {
+        return try {
+            val request = mutableMapOf("pinId" to pinId, "content" to content)
+            parentCommentId?.let { request["parent_comment"] = it }
+            
+            val response = commentApi.createComment(request)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!.data)
+            } else {
+                PinResult.Error("Failed to create comment: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun deleteComment(commentId: String): PinResult<Unit> {
+        return try {
+            val response = commentApi.deleteComment(commentId)
+            if (response.isSuccessful) {
+                PinResult.Success(Unit)
+            } else {
+                PinResult.Error("Failed to delete comment: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun toggleCommentLike(commentId: String): PinResult<ToggleLikeResponse> {
+        return try {
+            val response = commentApi.toggleCommentLike(mapOf("commentId" to commentId))
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to toggle comment like: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    // Pin Likes
+    override suspend fun togglePinLike(pinId: String): PinResult<TogglePinLikeResponse> {
+        return try {
+            val response = pinLikeApi.togglePinLike(mapOf("pinId" to pinId))
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to toggle pin like: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun checkPinLiked(pinId: String): PinResult<Boolean> {
+        return try {
+            val response = pinLikeApi.checkPinLiked(pinId)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!.isLiked)
+            } else {
+                PinResult.Error("Failed to check pin liked: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun getPinLikes(pinId: String, page: Int): PinResult<PinLikesResponse> {
+        return try {
+            val response = pinLikeApi.getPinLikes(pinId, page)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to fetch pin likes: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    // Share
+    override suspend fun sharePin(pinId: String): PinResult<SharePinResponse> {
+        return try {
+            val response = shareApi.sharePin(mapOf("pinId" to pinId))
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to share pin: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun generateShareLink(pinId: String): PinResult<String> {
+        return try {
+            val response = shareApi.generateShareLink(pinId)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!.shareUrl)
+            } else {
+                PinResult.Error("Failed to generate share link: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    // Notifications
+    override suspend fun getNotifications(page: Int, limit: Int): PinResult<NotificationListResponse> {
+        return try {
+            val response = notificationApi.getNotifications(page, limit)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to fetch notifications: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun markNotificationAsRead(notificationId: String): PinResult<Unit> {
+        return try {
+            val response = notificationApi.markAsRead(mapOf("notificationId" to notificationId))
+            if (response.isSuccessful) {
+                PinResult.Success(Unit)
+            } else {
+                PinResult.Error("Failed to mark notification as read: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun markAllNotificationsAsRead(): PinResult<Unit> {
+        return try {
+            val response = notificationApi.markAllAsRead()
+            if (response.isSuccessful) {
+                PinResult.Success(Unit)
+            } else {
+                PinResult.Error("Failed to mark all notifications as read: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun registerFCMToken(token: String): PinResult<Unit> {
+        return try {
+            val response = notificationApi.registerFCMToken(mapOf("fcm_token" to token))
+            if (response.isSuccessful) {
+                PinResult.Success(Unit)
+            } else {
+                PinResult.Error("Failed to register FCM token: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
 }
