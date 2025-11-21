@@ -28,6 +28,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
+import android.content.Intent
+import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,7 +40,6 @@ fun PinDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var showCommentDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -69,23 +70,13 @@ fun PinDetailScreen(
                     PinDetailContent(
                         pin = uiState.pin!!,
                         isSaved = uiState.isSaved,
-                        isLiked = uiState.isLiked,
-                        likesCount = uiState.likesCount,
-                        commentsCount = uiState.commentsCount,
-                        comments = uiState.comments,
+                        isFollowing = uiState.isFollowing,
+                        isFollowLoading = uiState.isFollowLoading,
+                        isDownloading = uiState.isDownloading,
                         onToggleSave = { viewModel.toggleSavePin() },
-                        onToggleLike = { viewModel.toggleLike() },
-                        onShare = {
-                            viewModel.sharePin()
-                            // Share using Android's share sheet
-                            val shareIntent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, "Check out this pin: ${uiState.pin?.title}")
-                                type = "text/plain"
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Pin"))
-                        },
-                        onCommentClick = { showCommentDialog = true }
+                        onShare = { viewModel.onShareClicked() },
+                        onDownload = { viewModel.onDownloadClicked() },
+                        onFollow = { viewModel.onFollowClicked() }
                     )
                 }
                 uiState.errorMessage != null -> {
@@ -116,6 +107,32 @@ fun PinDetailScreen(
                     )
                 }
             }
+
+            // Share event: open system share sheet when pendingShareUrl is set
+            uiState.pendingShareUrl?.let { shareUrl ->
+                LaunchedEffect(shareUrl) {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareUrl)
+                    }
+                    val chooser = Intent.createChooser(intent, "Share pin")
+                    context.startActivity(chooser)
+                    viewModel.onShareHandled()
+                }
+            }
+
+            // Download success message
+            uiState.downloadMessage?.let { msg ->
+                if (uiState.pin != null) {
+                    SuccessSnackbar(
+                        message = msg,
+                        onDismiss = { viewModel.clearDownloadMessage() },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp)
+                    )
+                }
+            }
         }
 
         // Comment Dialog
@@ -135,14 +152,13 @@ fun PinDetailScreen(
 private fun PinDetailContent(
     pin: Pin,
     isSaved: Boolean,
-    isLiked: Boolean,
-    likesCount: Int,
-    commentsCount: Int,
-    comments: List<Comment>,
+    isFollowing: Boolean,
+    isFollowLoading: Boolean,
+    isDownloading: Boolean,
     onToggleSave: () -> Unit,
-    onToggleLike: () -> Unit,
     onShare: () -> Unit,
-    onCommentClick: () -> Unit
+    onDownload: () -> Unit,
+    onFollow: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -193,8 +209,15 @@ private fun PinDetailContent(
                 )
                 ModernActionButton(
                     icon = Icons.Outlined.Share,
-                    onClick = onShare,
-                    tint = Color.White
+                    onClick = onShare
+                )
+                ActionButton(
+                    icon = if (isDownloading) Icons.Filled.Download else Icons.Outlined.Download,
+                    onClick = onDownload
+                )
+                ActionButton(
+                    icon = Icons.Outlined.MoreVert,
+                    onClick = { /* TODO: Implement more options */ }
                 )
             }
         }
@@ -371,14 +394,15 @@ private fun PinDetailContent(
                     }
 
                     Button(
-                        onClick = { /* TODO: Follow user */ },
+                        onClick = onFollow,
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE60023)
-                        ),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                            containerColor = if (isFollowing) Color(0xFFBDBDBD) else Color(0xFFE60023)
+                        )
                     ) {
-                        Text("Follow", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = if (isFollowing) "Following" else "Follow"
+                        )
                     }
                 }
 
@@ -689,8 +713,7 @@ private fun SuccessSnackbar(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(8.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -699,7 +722,7 @@ private fun SuccessSnackbar(
             Icon(
                 Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = Color(0xFF4CAF50)
+                tint = Color(0xFF388E3C)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
@@ -712,9 +735,10 @@ private fun SuccessSnackbar(
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Dismiss",
-                    tint = Color(0xFF4CAF50)
+                    tint = Color(0xFF2E7D32)
                 )
             }
         }
     }
 }
+

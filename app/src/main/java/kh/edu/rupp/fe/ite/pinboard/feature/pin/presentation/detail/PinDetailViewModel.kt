@@ -7,7 +7,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.*
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetPinByIdUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.DownloadPinUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,9 +26,12 @@ data class PinDetailUiState(
     val commentsCount: Int = 0,
     val comments: List<Comment> = emptyList(),
     val isLoading: Boolean = false,
-    val isLoadingComments: Boolean = false,
     val errorMessage: String? = null,
-    val shareUrl: String? = null
+    val isDownloading: Boolean = false,
+    val downloadMessage: String? = null,
+    val isFollowing: Boolean = false,
+    val isFollowLoading: Boolean = false,
+    val pendingShareUrl: String? = null
 )
 
 @HiltViewModel
@@ -33,10 +39,7 @@ class PinDetailViewModel @Inject constructor(
     private val getPinByIdUseCase: GetPinByIdUseCase,
     private val savePinUseCase: SavePinUseCase,
     private val unsavePinUseCase: UnsavePinUseCase,
-    private val togglePinLikeUseCase: TogglePinLikeUseCase,
-    private val getCommentsUseCase: GetCommentsUseCase,
-    private val createCommentUseCase: CreateCommentUseCase,
-    private val sharePinUseCase: SharePinUseCase,
+    private val downloadPinUseCase: DownloadPinUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -81,27 +84,73 @@ class PinDetailViewModel @Inject constructor(
         }
     }
 
-    private fun loadComments() {
-        if (pinId.isNullOrBlank()) return
+    fun onShareClicked() {
+        val pin = _uiState.value.pin ?: return
+
+        // Prefer explicit link if available, otherwise fall back to media URL or id
+        val shareUrl = when {
+            !pin.link.isNullOrBlank() -> pin.link
+            !pin.firstMediaUrl.isNullOrBlank() -> pin.firstMediaUrl
+            !pin._id.isNullOrBlank() -> "Pin: ${pin._id}"
+            else -> null
+        } ?: return
+
+        _uiState.update {
+            it.copy(pendingShareUrl = shareUrl)
+        }
+    }
+
+    fun onShareHandled() {
+        _uiState.update { it.copy(pendingShareUrl = null) }
+    }
+
+    fun onFollowClicked() {
+        val current = _uiState.value
+        val user = current.pin?.user ?: return
+
+        // UI-only toggle for now; can be replaced with real follow/unfollow API
+        _uiState.update { it.copy(isFollowLoading = true) }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingComments = true) }
+            // Simulate immediate completion; hook API here later
+            _uiState.update {
+                it.copy(
+                    isFollowing = !it.isFollowing,
+                    isFollowLoading = false
+                )
+            }
+        }
+    }
 
-            when (val result = getCommentsUseCase(pinId)) {
+    fun onDownloadClicked() {
+        val pinId = _uiState.value.pin?._id ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDownloading = true, downloadMessage = null, errorMessage = null) }
+
+            when (val result = downloadPinUseCase(pinId)) {
                 is PinResult.Success -> {
                     _uiState.update {
                         it.copy(
-                            isLoadingComments = false,
-                            comments = result.data.data,
-                            commentsCount = result.data.data.size
+                            isDownloading = false,
+                            downloadMessage = "Saved to gallery"
                         )
                     }
                 }
                 is PinResult.Error -> {
-                    _uiState.update { it.copy(isLoadingComments = false) }
+                    _uiState.update {
+                        it.copy(
+                            isDownloading = false,
+                            errorMessage = result.message
+                        )
+                    }
                 }
             }
         }
+    }
+
+    fun clearDownloadMessage() {
+        _uiState.update { it.copy(downloadMessage = null) }
     }
 
     fun toggleSavePin() {
