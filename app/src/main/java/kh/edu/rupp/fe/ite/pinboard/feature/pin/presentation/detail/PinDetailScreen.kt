@@ -28,7 +28,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
-import android.content.Intent
 import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +39,7 @@ fun PinDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var showCommentDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -76,7 +76,8 @@ fun PinDetailScreen(
                         onToggleSave = { viewModel.toggleSavePin() },
                         onShare = { viewModel.onShareClicked() },
                         onDownload = { viewModel.onDownloadClicked() },
-                        onFollow = { viewModel.onFollowClicked() }
+                        onFollow = { viewModel.onFollowClicked() },
+                        onCommentClick = { showCommentDialog = true }
                     )
                 }
                 uiState.errorMessage != null -> {
@@ -158,7 +159,8 @@ private fun PinDetailContent(
     onToggleSave: () -> Unit,
     onShare: () -> Unit,
     onDownload: () -> Unit,
-    onFollow: () -> Unit
+    onFollow: () -> Unit,
+    onCommentClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -211,11 +213,11 @@ private fun PinDetailContent(
                     icon = Icons.Outlined.Share,
                     onClick = onShare
                 )
-                ActionButton(
+                ModernActionButton(
                     icon = if (isDownloading) Icons.Filled.Download else Icons.Outlined.Download,
                     onClick = onDownload
                 )
-                ActionButton(
+                ModernActionButton(
                     icon = Icons.Outlined.MoreVert,
                     onClick = { /* TODO: Implement more options */ }
                 )
@@ -253,16 +255,16 @@ private fun PinDetailContent(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     ModernInteractionButton(
-                        icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        text = if (likesCount > 0) "$likesCount" else "Like",
-                        isActive = isLiked,
-                        onClick = onToggleLike,
+                        icon = Icons.Outlined.FavoriteBorder,
+                        text = "Like",
+                        isActive = false,
+                        onClick = { /* TODO: Implement like */ },
                         modifier = Modifier.weight(1f)
                     )
 
                     ModernInteractionButton(
                         icon = Icons.Outlined.ChatBubbleOutline,
-                        text = if (commentsCount > 0) "$commentsCount" else "Comment",
+                        text = "Comment",
                         isActive = false,
                         onClick = onCommentClick,
                         modifier = Modifier.weight(1f)
@@ -403,39 +405,6 @@ private fun PinDetailContent(
                         Text(
                             text = if (isFollowing) "Following" else "Follow"
                         )
-                    }
-                }
-
-                // Comments Section
-                if (comments.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Text(
-                        text = "Comments (${comments.size})",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1C1C1C)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    comments.take(3).forEach { comment ->
-                        CommentItemCompact(comment = comment)
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    if (comments.size > 3) {
-                        TextButton(
-                            onClick = onCommentClick,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                "View all ${comments.size} comments",
-                                color = Color(0xFFE60023),
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
                     }
                 }
 
