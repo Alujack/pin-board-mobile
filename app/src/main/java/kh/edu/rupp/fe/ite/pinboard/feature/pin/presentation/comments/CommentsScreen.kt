@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,26 +92,20 @@ fun CommentsScreen(
                     EmptyCommentsView()
                 }
                 else -> {
-                    PullToRefreshBox(
-                        isRefreshing = uiState.isLoading,
-                        onRefresh = { viewModel.refresh() },
-                        modifier = Modifier.fillMaxSize()
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFF8F8F8)),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color(0xFFF8F8F8)),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(uiState.comments) { comment ->
-                                ModernCommentItem(
-                                    comment = comment,
-                                    onLikeClick = { viewModel.toggleCommentLike(comment._id) },
-                                    onReplyClick = { replyingTo = comment },
-                                    onDeleteClick = { viewModel.deleteComment(comment._id) }
-                                )
-                            }
+                        items(uiState.comments) { comment ->
+                            ModernCommentItem(
+                                comment = comment,
+                                onLikeClick = { viewModel.toggleCommentLike(comment._id) },
+                                onReplyClick = { replyingTo = comment },
+                                onDeleteClick = { viewModel.deleteComment(comment._id) }
+                            )
                         }
                     }
                 }

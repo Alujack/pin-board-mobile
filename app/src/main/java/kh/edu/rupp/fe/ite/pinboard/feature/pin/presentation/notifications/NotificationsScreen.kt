@@ -11,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -100,22 +99,16 @@ fun NotificationsScreen(
                 EmptyStateView()
             }
             else -> {
-                PullToRefreshBox(
-                    isRefreshing = uiState.isLoading,
-                    onRefresh = { viewModel.refresh() },
-                    modifier = Modifier.fillMaxSize()
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(uiState.notifications) { notification ->
-                            ModernNotificationItem(
-                                notification = notification,
-                                onClick = { viewModel.markAsRead(notification.id) }
-                            )
-                        }
+                    items(uiState.notifications) { notification ->
+                        ModernNotificationItem(
+                            notification = notification,
+                            onClick = { viewModel.markAsRead(notification.id) }
+                        )
                     }
                 }
             }
