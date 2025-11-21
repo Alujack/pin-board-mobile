@@ -1,6 +1,8 @@
 package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.detail
 
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -14,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -23,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import android.content.Intent
 import android.net.Uri
@@ -31,6 +35,7 @@ import android.net.Uri
 @Composable
 fun PinDetailScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToComments: (String) -> Unit = {},
     viewModel: PinDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -39,14 +44,15 @@ fun PinDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pin Details") },
+                title = { Text("Pin Details", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF1C1C1C)
                 )
             )
         }
@@ -81,9 +87,17 @@ fun PinDetailScreen(
                 }
             }
 
-            // Error Snackbar
+            // Success/Error Snackbar
             uiState.errorMessage?.let { error ->
-                if (uiState.pin != null) {
+                if (uiState.pin != null && error.contains("successfully")) {
+                    SuccessSnackbar(
+                        message = error,
+                        onDismiss = { viewModel.clearError() },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp)
+                    )
+                } else if (uiState.pin != null) {
                     ErrorSnackbar(
                         message = error,
                         onDismiss = { viewModel.clearError() },
@@ -120,6 +134,17 @@ fun PinDetailScreen(
                 }
             }
         }
+
+        // Comment Dialog
+        if (showCommentDialog) {
+            CommentDialog(
+                onDismiss = { showCommentDialog = false },
+                onSubmit = { comment ->
+                    viewModel.addComment(comment)
+                    showCommentDialog = false
+                }
+            )
+        }
     }
 }
 
@@ -139,19 +164,35 @@ private fun PinDetailContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .background(Color.White)
+            .background(Color(0xFFF8F8F8))
     ) {
-        // Pin Image(s)
+        // Pin Image with gradient overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(400.dp)
+                .height(450.dp)
         ) {
             AsyncImage(
                 model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
                 contentDescription = pin.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
+            )
+
+            // Gradient overlay at bottom
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.7f)
+                            )
+                        )
+                    )
             )
 
             // Action buttons overlay
@@ -161,12 +202,12 @@ private fun PinDetailContent(
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ActionButton(
+                ModernActionButton(
                     icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                     onClick = onToggleSave,
-                    tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C)
+                    tint = if (isSaved) Color(0xFFE60023) else Color.White
                 )
-                ActionButton(
+                ModernActionButton(
                     icon = Icons.Outlined.Share,
                     onClick = onShare
                 )
@@ -181,113 +222,176 @@ private fun PinDetailContent(
             }
         }
 
-        // Pin Information
-        Column(
+        // Content Card
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .offset(y = (-30).dp),
+            shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            // Title
-            Text(
-                text = pin.title,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1C1C1C)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                // Title
+                Text(
+                    text = pin.title,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1C1C1C),
+                    lineHeight = 36.sp
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Description
-            pin.description?.let { desc ->
-                if (desc.isNotBlank()) {
-                    Text(
-                        text = desc,
-                        fontSize = 16.sp,
-                        color = Color(0xFF424242),
-                        lineHeight = 24.sp
+                // Interaction Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ModernInteractionButton(
+                        icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        text = if (likesCount > 0) "$likesCount" else "Like",
+                        isActive = isLiked,
+                        onClick = onToggleLike,
+                        modifier = Modifier.weight(1f)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-            }
 
-            // Link
-            pin.link?.let { link ->
-                if (link.isNotBlank()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF5F5F5)
+                    ModernInteractionButton(
+                        icon = Icons.Outlined.ChatBubbleOutline,
+                        text = if (commentsCount > 0) "$commentsCount" else "Comment",
+                        isActive = false,
+                        onClick = onCommentClick,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ModernInteractionButton(
+                        icon = Icons.Outlined.Share,
+                        text = "Share",
+                        isActive = false,
+                        onClick = onShare,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Description
+                pin.description?.let { desc ->
+                    if (desc.isNotBlank()) {
+                        Text(
+                            text = "Description",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1C1C1C)
                         )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Outlined.Link,
-                                contentDescription = "Link",
-                                tint = Color(0xFF757575)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = link,
-                                fontSize = 14.sp,
-                                color = Color(0xFF1976D2),
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = desc,
+                            fontSize = 16.sp,
+                            color = Color(0xFF424242),
+                            lineHeight = 24.sp
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
-            }
 
-            Divider(color = Color(0xFFE0E0E0))
-            Spacer(modifier = Modifier.height(16.dp))
+                // Link
+                pin.link?.let { link ->
+                    if (link.isNotBlank()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFF0F7FF)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Link,
+                                    contentDescription = "Link",
+                                    tint = Color(0xFF1976D2),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = link,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF1976D2),
+                                    modifier = Modifier.weight(1f),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
 
-            // User Information
-            pin.user?.let { user ->
+                Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // User Information
+                val user = pin.user
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Avatar placeholder
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(56.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE0E0E0)),
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFE60023),
+                                        Color(0xFFFF6B6B)
+                                    )
+                                )
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Person,
                             contentDescription = "Profile",
-                            tint = Color(0xFF9E9E9E),
-                            modifier = Modifier.size(24.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                    Column {
-                        Text(
-                            text = user.username,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1C1C1C)
-                        )
-                        user.email?.let { email ->
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (user != null) {
                             Text(
-                                text = email,
-                                fontSize = 14.sp,
-                                color = Color(0xFF757575)
+                                text = user.username,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1C1C1C)
+                            )
+                            if (!user.email.isNullOrBlank()) {
+                                Text(
+                                    text = user.email,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF757575)
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "Unknown User",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1C1C1C)
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.weight(1f))
 
                     Button(
                         onClick = onFollow,
@@ -301,44 +405,96 @@ private fun PinDetailContent(
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                // Comments Section
+                if (comments.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(20.dp))
 
-            // Metadata
-            pin.createdAt?.let { createdAt ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Outlined.CalendarToday,
-                        contentDescription = null,
-                        tint = Color(0xFF757575),
-                        modifier = Modifier.size(16.dp)
-                    )
                     Text(
-                        text = "Created: $createdAt",
-                        fontSize = 14.sp,
-                        color = Color(0xFF757575)
+                        text = "Comments (${comments.size})",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF1C1C1C)
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    comments.take(3).forEach { comment ->
+                        CommentItemCompact(comment = comment)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    if (comments.size > 3) {
+                        TextButton(
+                            onClick = onCommentClick,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                "View all ${comments.size} comments",
+                                color = Color(0xFFE60023),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
 
 @Composable
-private fun ActionButton(
+private fun CommentItemCompact(comment: Comment) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE0E0E0)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Person,
+                contentDescription = null,
+                tint = Color(0xFF9E9E9E),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = comment.user.username,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = Color(0xFF1C1C1C)
+            )
+            Text(
+                text = comment.content,
+                fontSize = 14.sp,
+                color = Color(0xFF424242),
+                lineHeight = 20.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModernActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    tint: Color = Color(0xFF1C1C1C)
+    tint: Color = Color.White
 ) {
     Surface(
-        modifier = Modifier.size(40.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.95f),
-        shadowElevation = 4.dp
+        modifier = Modifier.size(48.dp),
+        shape = CircleShape,
+        color = Color.Black.copy(alpha = 0.3f)
     ) {
         IconButton(
             onClick = onClick,
@@ -348,10 +504,102 @@ private fun ActionButton(
                 icon,
                 contentDescription = null,
                 tint = tint,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
     }
+}
+
+@Composable
+private fun ModernInteractionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(52.dp),
+        shape = RoundedCornerShape(26.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isActive) Color(0xFFFFEBEE) else Color(0xFFF5F5F5),
+            contentColor = if (isActive) Color(0xFFE60023) else Color(0xFF666666)
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 2.dp
+        )
+    ) {
+        Icon(
+            icon,
+            contentDescription = text,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun CommentDialog(
+    onDismiss: () -> Unit,
+    onSubmit: (String) -> Unit
+) {
+    var commentText by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Add Comment",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        text = {
+            TextField(
+                value = commentText,
+                onValueChange = { commentText = it },
+                placeholder = { Text("Write your comment...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFFF5F5F5),
+                    unfocusedContainerColor = Color(0xFFF5F5F5),
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (commentText.isNotBlank()) {
+                        onSubmit(commentText)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE60023)
+                ),
+                enabled = commentText.isNotBlank()
+            ) {
+                Text("Post")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color(0xFF666666))
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
+    )
 }
 
 @Composable
@@ -364,7 +612,10 @@ private fun LoadingView() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CircularProgressIndicator(color = Color(0xFFE60023))
+            CircularProgressIndicator(
+                color = Color(0xFFE60023),
+                strokeWidth = 3.dp
+            )
             Text(
                 text = "Loading pin details...",
                 fontSize = 14.sp,
@@ -405,7 +656,8 @@ private fun ErrorView(
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFE60023)
-                )
+                ),
+                shape = RoundedCornerShape(24.dp)
             ) {
                 Text("Retry")
             }
@@ -422,7 +674,8 @@ private fun ErrorSnackbar(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
