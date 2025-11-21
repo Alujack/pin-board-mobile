@@ -31,7 +31,12 @@ data class ProfileState(
     val isDownloading: Boolean = false,
     val errorMessage: String? = null,
     val currentSearchQuery: String = "",
-    val username: String = ""
+    val username: String = "",
+    val followersCount: Int = 0,
+    val followingCount: Int = 0,
+    val pinsCount: Int = 0,
+    val bio: String? = null,
+    val profilePicture: String? = null
 )
 
 @HiltViewModel
@@ -57,10 +62,32 @@ class ProfileViewModel @Inject constructor(
     private fun loadProfile() {
         viewModelScope.launch {
             try {
-                val me = authApi.me()
-                _state.update { it.copy(username = me.username) }
+                val response = authApi.getCurrentUserProfile()
+                if (response.isSuccessful && response.body() != null) {
+                    val profile = response.body()!!.data
+                    _state.update {
+                        it.copy(
+                            username = profile.username,
+                            followersCount = profile.followersCount,
+                            followingCount = profile.followingCount,
+                            pinsCount = profile.pinsCount,
+                            bio = profile.bio,
+                            profilePicture = profile.profile_picture
+                        )
+                    }
+                } else {
+                    // Fallback to basic me endpoint
+                    val me = authApi.me()
+                    _state.update { it.copy(username = me.username) }
+                }
             } catch (e: Exception) {
-                _state.update { it.copy(errorMessage = e.message ?: "Failed to load profile") }
+                // Fallback to basic me endpoint
+                try {
+                    val me = authApi.me()
+                    _state.update { it.copy(username = me.username) }
+                } catch (e2: Exception) {
+                    _state.update { it.copy(errorMessage = e2.message ?: "Failed to load profile") }
+                }
             }
         }
     }

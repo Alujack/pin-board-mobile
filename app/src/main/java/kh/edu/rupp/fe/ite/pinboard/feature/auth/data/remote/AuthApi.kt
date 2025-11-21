@@ -20,6 +20,10 @@ interface AuthApi {
     // Current authenticated user
     @GET("api/auth/me")
     suspend fun me(): MeResponse
+    
+    // Get user profile with stats
+    @GET("api/users/me")
+    suspend fun getCurrentUserProfile(): Response<UserProfileResponse>
 }
 
 // Request models
@@ -89,4 +93,25 @@ data class MeResponse(
     val saved_pins: List<String>?,
     val is_active: String?,
     val id: String?
+)
+
+// User profile with stats
+data class UserProfileResponse(
+    val success: Boolean,
+    val message: String,
+    val data: UserProfileData
+)
+
+data class UserProfileData(
+    val _id: String,
+    val username: String,
+    val full_name: String?,
+    val bio: String?,
+    val profile_picture: String?,
+    val website: String?,
+    val location: String?,
+    val followersCount: Int,
+    val followingCount: Int,
+    val pinsCount: Int,
+    val isFollowing: Boolean
 )
