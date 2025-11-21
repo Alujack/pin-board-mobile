@@ -3,50 +3,52 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
+import javax.inject.Inject
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
-import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SearchPinsUseCase
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
-import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.DownloadPinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SearchPinsUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class ProfileState(
-    val createdMedia: List<MediaItem> = emptyList(),
-    val savedMedia: List<MediaItem> = emptyList(),
-    val searchResults: List<Pin> = emptyList(),
-    val savedPinIds: Set<String> = emptySet(),
-    val pinDetailsById: Map<String, Pin> = emptyMap(),
-    val isLoading: Boolean = false,
-    val isSearching: Boolean = false,
-    val isSaving: Boolean = false,
-    val isDownloading: Boolean = false,
-    val errorMessage: String? = null,
-    val currentSearchQuery: String = "",
-    val username: String = "",
-    val followersCount: Int = 0,
-    val followingCount: Int = 0,
-    val pinsCount: Int = 0,
-    val bio: String? = null,
-    val profilePicture: String? = null
+        val createdMedia: List<MediaItem> = emptyList(),
+        val savedMedia: List<MediaItem> = emptyList(),
+        val searchResults: List<Pin> = emptyList(),
+        val savedPinIds: Set<String> = emptySet(),
+        val pinDetailsById: Map<String, Pin> = emptyMap(),
+        val isLoading: Boolean = false,
+        val isSearching: Boolean = false,
+        val isSaving: Boolean = false,
+        val isDownloading: Boolean = false,
+        val errorMessage: String? = null,
+        val currentSearchQuery: String = "",
+        val username: String = "",
+        val followersCount: Int = 0,
+        val followingCount: Int = 0,
+        val pinsCount: Int = 0,
+        val bio: String? = null,
+        val profilePicture: String? = null
 )
 
 @HiltViewModel
-class ProfileViewModel @Inject constructor(
-    private val pinRepository: PinRepository, // Still needed for media endpoints
-    private val authApi: AuthApi,
-    private val searchPinsUseCase: SearchPinsUseCase,
-    private val savePinUseCase: SavePinUseCase,
-    private val unsavePinUseCase: UnsavePinUseCase,
-    private val downloadPinUseCase: DownloadPinUseCase
+class ProfileViewModel
+@Inject
+constructor(
+        private val pinRepository: PinRepository, // Still needed for media endpoints
+        private val authApi: AuthApi,
+        private val searchPinsUseCase: SearchPinsUseCase,
+        private val savePinUseCase: SavePinUseCase,
+        private val unsavePinUseCase: UnsavePinUseCase,
+        private val downloadPinUseCase: DownloadPinUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState())
@@ -67,12 +69,12 @@ class ProfileViewModel @Inject constructor(
                     val profile = response.body()!!.data
                     _state.update {
                         it.copy(
-                            username = profile.username,
-                            followersCount = profile.followersCount,
-                            followingCount = profile.followingCount,
-                            pinsCount = profile.pinsCount,
-                            bio = profile.bio,
-                            profilePicture = profile.profile_picture
+                                username = profile.username,
+                                followersCount = profile.followersCount,
+                                followingCount = profile.followingCount,
+                                pinsCount = profile.pinsCount,
+                                bio = profile.bio,
+                                profilePicture = profile.profile_picture
                         )
                     }
                 } else {
@@ -99,14 +101,11 @@ class ProfileViewModel @Inject constructor(
 
             when (val result = pinRepository.getCreatedImages()) {
                 is PinResult.Success -> {
-                    _state.update {
-                        it.copy(isLoading = false, createdMedia = result.data)
-                    }
+                    _state.update { it.copy(isLoading = false, createdMedia = result.data) }
                     preloadPinDetails(result.data)
                 }
-                is PinResult.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = result.message)
-                }
+                is PinResult.Error ->
+                        _state.update { it.copy(isLoading = false, errorMessage = result.message) }
             }
         }
     }
@@ -145,16 +144,15 @@ class ProfileViewModel @Inject constructor(
                 is PinResult.Success -> {
                     _state.update {
                         it.copy(
-                            isLoading = false,
-                            savedMedia = result.data,
-                            savedPinIds = result.data.mapNotNull { it.pinId }.toSet()
+                                isLoading = false,
+                                savedMedia = result.data,
+                                savedPinIds = result.data.mapNotNull { it.pinId }.toSet()
                         )
                     }
                     preloadPinDetails(result.data)
                 }
-                is PinResult.Error -> _state.update {
-                    it.copy(isLoading = false, errorMessage = result.message)
-                }
+                is PinResult.Error ->
+                        _state.update { it.copy(isLoading = false, errorMessage = result.message) }
             }
         }
     }
@@ -163,11 +161,7 @@ class ProfileViewModel @Inject constructor(
     fun searchPins(query: String) {
         if (query.isBlank()) {
             _state.update {
-                it.copy(
-                    searchResults = emptyList(),
-                    currentSearchQuery = "",
-                    isSearching = false
-                )
+                it.copy(searchResults = emptyList(), currentSearchQuery = "", isSearching = false)
             }
             return
         }
@@ -178,12 +172,12 @@ class ProfileViewModel @Inject constructor(
             }
 
             when (val result = searchPinsUseCase(query)) {
-                is PinResult.Success -> _state.update {
-                    it.copy(isSearching = false, searchResults = result.data)
-                }
-                is PinResult.Error -> _state.update {
-                    it.copy(isSearching = false, errorMessage = result.message)
-                }
+                is PinResult.Success ->
+                        _state.update { it.copy(isSearching = false, searchResults = result.data) }
+                is PinResult.Error ->
+                        _state.update {
+                            it.copy(isSearching = false, errorMessage = result.message)
+                        }
             }
         }
     }
@@ -198,17 +192,16 @@ class ProfileViewModel @Inject constructor(
                     _state.update { current ->
                         val updatedIds = current.savedPinIds + pinId
                         current.copy(
-                            isSaving = false,
-                            errorMessage = null,
-                            savedPinIds = updatedIds
+                                isSaving = false,
+                                errorMessage = null,
+                                savedPinIds = updatedIds
                         )
                     }
                     // ✅ Refresh saved media after saving
                     loadSavedMedia()
                 }
-                is PinResult.Error -> _state.update {
-                    it.copy(isSaving = false, errorMessage = result.message)
-                }
+                is PinResult.Error ->
+                        _state.update { it.copy(isSaving = false, errorMessage = result.message) }
             }
         }
     }
@@ -224,18 +217,17 @@ class ProfileViewModel @Inject constructor(
                         val updatedIds = current.savedPinIds - pinId
                         val updatedSaved = current.savedMedia.filterNot { it.pinId == pinId }
                         current.copy(
-                            isSaving = false,
-                            errorMessage = null,
-                            savedPinIds = updatedIds,
-                            savedMedia = updatedSaved
+                                isSaving = false,
+                                errorMessage = null,
+                                savedPinIds = updatedIds,
+                                savedMedia = updatedSaved
                         )
                     }
                     // ✅ Refresh saved list after unsaving
                     loadSavedMedia()
                 }
-                is PinResult.Error -> _state.update {
-                    it.copy(isSaving = false, errorMessage = result.message)
-                }
+                is PinResult.Error ->
+                        _state.update { it.copy(isSaving = false, errorMessage = result.message) }
             }
         }
     }
@@ -246,12 +238,12 @@ class ProfileViewModel @Inject constructor(
             _state.update { it.copy(isDownloading = true, errorMessage = null) }
 
             when (val result = downloadPinUseCase(pinId)) {
-                is PinResult.Success -> _state.update {
-                    it.copy(isDownloading = false, errorMessage = null)
-                }
-                is PinResult.Error -> _state.update {
-                    it.copy(isDownloading = false, errorMessage = result.message)
-                }
+                is PinResult.Success ->
+                        _state.update { it.copy(isDownloading = false, errorMessage = null) }
+                is PinResult.Error ->
+                        _state.update {
+                            it.copy(isDownloading = false, errorMessage = result.message)
+                        }
             }
         }
     }

@@ -8,9 +8,13 @@ import javax.inject.Inject
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.CreateCommentUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.DownloadPinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetCommentsUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetPinByIdUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SharePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.TogglePinLikeUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,6 +46,10 @@ constructor(
         private val savePinUseCase: SavePinUseCase,
         private val unsavePinUseCase: UnsavePinUseCase,
         private val downloadPinUseCase: DownloadPinUseCase,
+        private val togglePinLikeUseCase: TogglePinLikeUseCase,
+        private val createCommentUseCase: CreateCommentUseCase,
+        private val getCommentsUseCase: GetCommentsUseCase,
+        private val sharePinUseCase: SharePinUseCase,
         savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -52,6 +60,7 @@ constructor(
 
     init {
         loadPinDetails()
+        loadComments()
     }
 
     private fun loadPinDetails() {
@@ -158,12 +167,75 @@ constructor(
         }
     }
 
+    private fun loadComments() {
+        if (pinId.isNullOrBlank()) return
+
+        viewModelScope.launch {
+            when (val result = getCommentsUseCase(pinId)) {
+                is PinResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            comments = result.data.data,
+                            commentsCount = result.data.data.size
+                        )
+                    }
+                }
+                is PinResult.Error -> {
+                    // Silently fail for comments
+                }
+            }
+        }
+    }
+
+    fun toggleLike() {
+        val currentPin = _uiState.value.pin?._id ?: return
+
+        viewModelScope.launch {
+            when (val result = togglePinLikeUseCase(currentPin)) {
+                is PinResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLiked = result.data.isLiked,
+                            likesCount = result.data.likesCount
+                        )
+                    }
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
     fun addComment(content: String) {
         if (pinId.isNullOrBlank() || content.isBlank()) return
 
         viewModelScope.launch {
-            // TODO: Implement comment creation when API is ready
-            _uiState.update { it.copy(errorMessage = "Comment feature coming soon!") }
+            when (val result = createCommentUseCase(pinId, content)) {
+                is PinResult.Success -> {
+                    // Reload comments to get the updated list
+                    loadComments()
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
+    fun sharePin() {
+        val currentPin = _uiState.value.pin?._id ?: return
+
+        viewModelScope.launch {
+            when (val result = sharePinUseCase(currentPin)) {
+                is PinResult.Success -> {
+                    // Share was tracked successfully
+                    _uiState.update { it.copy(errorMessage = "Pin shared successfully!") }
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
         }
     }
 
@@ -173,5 +245,6 @@ constructor(
 
     fun retry() {
         loadPinDetails()
+        loadComments()
     }
 }
