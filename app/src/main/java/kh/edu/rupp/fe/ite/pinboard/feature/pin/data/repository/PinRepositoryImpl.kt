@@ -237,8 +237,13 @@ class PinRepositoryImpl @Inject constructor(
 
     override suspend fun createComment(pinId: String, content: String, parentCommentId: String?): PinResult<Comment> {
         return try {
-            val request = mutableMapOf("pinId" to pinId, "content" to content)
-            parentCommentId?.let { request["parent_comment"] = it }
+            val request = CreateCommentRequest(
+                pinId = pinId,
+                body = CommentBody(
+                    content = content,
+                    parent_comment = parentCommentId
+                )
+            )
             
             val response = commentApi.createComment(request)
             if (response.isSuccessful && response.body() != null) {
@@ -266,7 +271,7 @@ class PinRepositoryImpl @Inject constructor(
 
     override suspend fun toggleCommentLike(commentId: String): PinResult<ToggleLikeResponse> {
         return try {
-            val response = commentApi.toggleCommentLike(mapOf("commentId" to commentId))
+            val response = commentApi.toggleCommentLike(ToggleCommentLikeRequest(commentId))
             if (response.isSuccessful && response.body() != null) {
                 PinResult.Success(response.body()!!)
             } else {

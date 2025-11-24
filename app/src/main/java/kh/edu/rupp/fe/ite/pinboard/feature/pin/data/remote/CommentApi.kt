@@ -15,12 +15,12 @@ interface CommentApi {
 
     @POST("comment/createComment")
     suspend fun createComment(
-        @Body request: Map<String, Any>
+        @Body request: CreateCommentRequest
     ): Response<CreateCommentResponse>
 
     @PUT("comment/updateComment")
     suspend fun updateComment(
-        @Body request: Map<String, Any>
+        @Body request: UpdateCommentRequest
     ): Response<CreateCommentResponse>
 
     @DELETE("comment/deleteComment")
@@ -30,7 +30,7 @@ interface CommentApi {
 
     @POST("comment/toggleCommentLike")
     suspend fun toggleCommentLike(
-        @Body request: Map<String, String>
+        @Body request: ToggleCommentLikeRequest
     ): Response<ToggleLikeResponse>
 
     @GET("comment/getComments")
@@ -41,4 +41,28 @@ interface CommentApi {
         @Query("limit") limit: Int = 10
     ): Response<CommentResponse>
 }
+
+// Request models
+data class CreateCommentRequest(
+    val pinId: String,
+    val body: CommentBody
+)
+
+data class CommentBody(
+    val content: String,
+    val parent_comment: String? = null
+)
+
+data class UpdateCommentRequest(
+    val commentId: String,
+    val body: CommentUpdateBody
+)
+
+data class CommentUpdateBody(
+    val content: String
+)
+
+data class ToggleCommentLikeRequest(
+    val commentId: String
+)
 
