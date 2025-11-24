@@ -277,13 +277,11 @@ constructor(
             parentCommentId: String?
     ): PinResult<Comment> {
         return try {
-            val request = CreateCommentRequest(
-                pinId = pinId,
-                body = CommentBody(
-                    content = content,
-                    parent_comment = parentCommentId
-                )
-            )
+            val request =
+                    CreateCommentRequest(
+                            pinId = pinId,
+                            body = CommentBody(content = content, parent_comment = parentCommentId)
+                    )
 
             val response = commentApi.createComment(request)
             if (response.isSuccessful && response.body() != null) {

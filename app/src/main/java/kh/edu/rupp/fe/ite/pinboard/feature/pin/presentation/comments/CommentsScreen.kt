@@ -92,20 +92,20 @@ fun CommentsScreen(
                     EmptyCommentsView()
                 }
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFFF8F8F8)),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.comments) { comment ->
-                            ModernCommentItem(
-                                comment = comment,
-                                onLikeClick = { viewModel.toggleCommentLike(comment._id) },
-                                onReplyClick = { replyingTo = comment },
-                                onDeleteClick = { viewModel.deleteComment(comment._id) }
-                            )
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFFF8F8F8)),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(uiState.comments) { comment ->
+                                ModernCommentItem(
+                                    comment = comment,
+                                    onLikeClick = { viewModel.toggleCommentLike(comment._id) },
+                                    onReplyClick = { replyingTo = comment },
+                                    onDeleteClick = { viewModel.deleteComment(comment._id) }
+                                )
                         }
                     }
                 }

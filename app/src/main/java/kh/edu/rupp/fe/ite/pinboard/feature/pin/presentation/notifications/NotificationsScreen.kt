@@ -99,16 +99,16 @@ fun NotificationsScreen(
                 EmptyStateView()
             }
             else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(uiState.notifications) { notification ->
-                        ModernNotificationItem(
-                            notification = notification,
-                            onClick = { viewModel.markAsRead(notification.id) }
-                        )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 12.dp, horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(uiState.notifications) { notification ->
+                            ModernNotificationItem(
+                                notification = notification,
+                                onClick = { viewModel.markAsRead(notification.id) }
+                            )
                     }
                 }
             }

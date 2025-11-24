@@ -23,34 +23,34 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class PinDetailUiState(
-        val pin: Pin? = null,
-        val isSaved: Boolean = false,
-        val isLiked: Boolean = false,
-        val likesCount: Int = 0,
-        val commentsCount: Int = 0,
-        val comments: List<Comment> = emptyList(),
-        val isLoading: Boolean = false,
-        val errorMessage: String? = null,
-        val isDownloading: Boolean = false,
-        val downloadMessage: String? = null,
-        val isFollowing: Boolean = false,
-        val isFollowLoading: Boolean = false,
-        val pendingShareUrl: String? = null
+    val pin: Pin? = null,
+    val isSaved: Boolean = false,
+    val isLiked: Boolean = false,
+    val likesCount: Int = 0,
+    val commentsCount: Int = 0,
+    val comments: List<Comment> = emptyList(),
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val isDownloading: Boolean = false,
+    val downloadMessage: String? = null,
+    val isFollowing: Boolean = false,
+    val isFollowLoading: Boolean = false,
+    val pendingShareUrl: String? = null
 )
 
 @HiltViewModel
 class PinDetailViewModel
 @Inject
 constructor(
-        private val getPinByIdUseCase: GetPinByIdUseCase,
-        private val savePinUseCase: SavePinUseCase,
-        private val unsavePinUseCase: UnsavePinUseCase,
-        private val downloadPinUseCase: DownloadPinUseCase,
+    private val getPinByIdUseCase: GetPinByIdUseCase,
+    private val savePinUseCase: SavePinUseCase,
+    private val unsavePinUseCase: UnsavePinUseCase,
+    private val downloadPinUseCase: DownloadPinUseCase,
         private val togglePinLikeUseCase: TogglePinLikeUseCase,
         private val createCommentUseCase: CreateCommentUseCase,
         private val getCommentsUseCase: GetCommentsUseCase,
         private val sharePinUseCase: SharePinUseCase,
-        savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PinDetailUiState())
@@ -91,11 +91,11 @@ constructor(
         // Prefer explicit link if available, otherwise fall back to media URL or id
         val shareUrl =
                 when {
-                    !pin.link.isNullOrBlank() -> pin.link
-                    !pin.firstMediaUrl.isNullOrBlank() -> pin.firstMediaUrl
-                    !pin._id.isNullOrBlank() -> "Pin: ${pin._id}"
-                    else -> null
-                }
+            !pin.link.isNullOrBlank() -> pin.link
+            !pin.firstMediaUrl.isNullOrBlank() -> pin.firstMediaUrl
+            !pin._id.isNullOrBlank() -> "Pin: ${pin._id}"
+            else -> null
+        }
                         ?: return
 
         _uiState.update { it.copy(pendingShareUrl = shareUrl) }
@@ -151,10 +151,10 @@ constructor(
         viewModelScope.launch {
             val result =
                     if (_uiState.value.isSaved) {
-                        unsavePinUseCase(currentPin)
-                    } else {
-                        savePinUseCase(currentPin)
-                    }
+                unsavePinUseCase(currentPin)
+            } else {
+                savePinUseCase(currentPin)
+            }
 
             when (result) {
                 is PinResult.Success -> {
