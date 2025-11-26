@@ -278,9 +278,12 @@ constructor(
     ): PinResult<Comment> {
         return try {
             val request =
-                    CreateCommentRequest(
+                    kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.CreateCommentRequest(
                             pinId = pinId,
-                            body = CommentBody(content = content, parent_comment = parentCommentId)
+                            body = kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.CommentBody(
+                                    content = content,
+                                    parent_comment = parentCommentId
+                            )
                     )
 
             val response = commentApi.createComment(request)

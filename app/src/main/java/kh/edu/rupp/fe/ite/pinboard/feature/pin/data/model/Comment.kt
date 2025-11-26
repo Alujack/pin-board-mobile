@@ -30,11 +30,6 @@ data class CommentResponse(
     val pagination: Pagination? = null
 )
 
-data class CreateCommentRequest(
-    val content: String,
-    val parent_comment: String? = null
-)
-
 data class CreateCommentResponse(
     val success: Boolean,
     val message: String,
