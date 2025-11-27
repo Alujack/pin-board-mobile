@@ -29,6 +29,10 @@ import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.register.RegisterSc
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.create.CreatePinScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile.ProfileScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.search.SearchScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.home.HomeScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.detail.PinDetailScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.board.BoardDetailScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.notifications.NotificationsScreen
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -37,6 +41,13 @@ sealed class Screen(val route: String) {
     object CreatePin : Screen("create_pin")
     object Profile : Screen("profile")
     object Search : Screen("search")
+    object PinDetail : Screen("pin_detail/{pinId}") {
+        fun createRoute(pinId: String) = "pin_detail/$pinId"
+    }
+    object BoardDetail : Screen("board_detail/{boardId}") {
+        fun createRoute(boardId: String) = "board_detail/$boardId"
+    }
+    object Notifications : Screen("notifications")
 }
 
 /**
@@ -93,7 +104,8 @@ fun AuthNavGraph(
         }
 
         composable(Screen.Home.route) {
-            HomeScreen(
+            MainHomeScreen(
+                navController = navController,
                 onLogout = {
                     scope.launch {
                         tokenManager.clearAllTokens()
@@ -101,9 +113,6 @@ fun AuthNavGraph(
                             popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     }
-                },
-                onNavigateToCreatePin = {
-                    navController.navigate(Screen.CreatePin.route)
                 }
             )
         }
@@ -123,6 +132,9 @@ fun AuthNavGraph(
             ProfileScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onOpenPinDetail = { pinId ->
+                    navController.navigate(Screen.PinDetail.createRoute(pinId))
                 }
             )
         }
@@ -134,6 +146,29 @@ fun AuthNavGraph(
                 }
             )
         }
+
+        composable(Screen.PinDetail.route) {
+            PinDetailScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.BoardDetail.route) {
+            BoardDetailScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onPinClick = { pinId ->
+                    navController.navigate(Screen.PinDetail.createRoute(pinId))
+                }
+            )
+        }
+
+        composable(Screen.Notifications.route) {
+            NotificationsScreen()
+        }
     }
 }
 
@@ -142,9 +177,9 @@ fun AuthNavGraph(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    onLogout: () -> Unit,
-    onNavigateToCreatePin: () -> Unit
+fun MainHomeScreen(
+    navController: NavHostController,
+    onLogout: () -> Unit
 ) {
     val tabs = remember {
         listOf(
@@ -219,7 +254,7 @@ fun HomeScreen(
                 },
                 floatingActionButton = {
                     FloatingActionButton(
-                        onClick = onNavigateToCreatePin,
+                        onClick = { navController.navigate(Screen.CreatePin.route) },
                         containerColor = activeColor,
                         contentColor = Color.White,
                         modifier = Modifier.offset(y = (-1).dp)
@@ -237,10 +272,19 @@ fun HomeScreen(
             color = MaterialTheme.colorScheme.background
         ) {
             when (selectedTab) {
-                BottomTab.Home -> TabPlaceholderContent("Home Feed")
+                BottomTab.Home -> HomeScreen(
+                    onPinClick = { pinId ->
+                        navController.navigate(Screen.PinDetail.createRoute(pinId))
+                    }
+                )
                 BottomTab.Search -> SearchScreen(onNavigateBack = { selectedTab = BottomTab.Home })
-                BottomTab.Messages -> TabPlaceholderContent("Messages")
-                BottomTab.Profile -> ProfileScreen(onNavigateBack = { selectedTab = BottomTab.Home })
+                BottomTab.Messages -> NotificationsScreen()
+                BottomTab.Profile -> ProfileScreen(
+                    onNavigateBack = { selectedTab = BottomTab.Home },
+                    onOpenPinDetail = { pinId ->
+                        navController.navigate(Screen.PinDetail.createRoute(pinId))
+                    }
+                )
             }
         }
     }
@@ -253,27 +297,3 @@ private enum class BottomTab(val label: String) {
     Profile("Profile")
 }
 
-@Composable
-private fun TabPlaceholderContent(title: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = title,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Simple clean layout",
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
-    }
-}
-
- 

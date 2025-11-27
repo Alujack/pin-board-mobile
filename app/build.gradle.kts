@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("com.google.dagger.hilt.android")
     kotlin("kapt")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -22,7 +23,7 @@ android {
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"https://pin-board-backend-git-master-alujacks-projects.vercel.app/\""
+            "\"http://10.0.2.2:3000/\""
         )
     }
 
@@ -185,8 +186,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
-    // Firebase Cloud Messaging (explicit version to avoid resolution issues)
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
-    
 }

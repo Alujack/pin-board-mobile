@@ -34,6 +34,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 fun ProfileScreen(
     modifier: Modifier = Modifier,
     onNavigateBack: () -> Unit = {},
+    onOpenPinDetail: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -60,10 +61,10 @@ fun ProfileScreen(
     ) {
         // --- Profile Header ---
         ProfileHeader(
-            username = "Your Username",
-            followersCount = 1250,
-            followingCount = 89,
-            pinsCount = state.createdMedia.size,
+            username = state.username.ifBlank { "" },
+            followersCount = state.followersCount,
+            followingCount = state.followingCount,
+            pinsCount = state.pinsCount,
             onEditProfile = {}
         )
 
@@ -92,7 +93,10 @@ fun ProfileScreen(
                 else PinGrid(
                     pins = state.searchResults,
                     savedIds = state.savedPinIds,
-                    onPinClick = {},
+                    onPinClick = { pin ->
+                        val id = pin._id ?: return@PinGrid
+                        onOpenPinDetail(id)
+                    },
                     onPinToggleSave = { pin ->
                         val id = pin._id ?: return@PinGrid
                         if (state.savedPinIds.contains(id)) viewModel.unsavePin(id)
@@ -108,12 +112,17 @@ fun ProfileScreen(
                     media = state.createdMedia,
                     savedIds = state.savedPinIds,
                     isSavedContext = false,
+                    ownerName = state.username,
+                    pinDetailsById = state.pinDetailsById,
+                    onItemClick = { media ->
+                        val id = media.pinId ?: return@MediaGrid
+                        onOpenPinDetail(id)
+                    },
                     onToggleSave = { media ->
                         val id = media.pinId ?: return@MediaGrid
                         if (state.savedPinIds.contains(id)) viewModel.unsavePin(id)
                         else viewModel.savePin(id)
-                    },
-                    onDownload = { media -> viewModel.downloadPin(media.pinId ?: "") }
+                    }
                 )
             }
 
@@ -123,8 +132,13 @@ fun ProfileScreen(
                     media = state.savedMedia,
                     savedIds = state.savedPinIds,
                     isSavedContext = true,
-                    onToggleSave = { media -> viewModel.unsavePin(media.pinId ?: "") },
-                    onDownload = { media -> viewModel.downloadPin(media.pinId ?: "") }
+                    ownerName = state.username,
+                    pinDetailsById = state.pinDetailsById,
+                    onItemClick = { media ->
+                        val id = media.pinId ?: return@MediaGrid
+                        onOpenPinDetail(id)
+                    },
+                    onToggleSave = { media -> viewModel.unsavePin(media.pinId ?: "") }
                 )
             }
         }
@@ -344,8 +358,10 @@ private fun MediaGrid(
     media: List<MediaItem>,
     savedIds: Set<String>,
     isSavedContext: Boolean,
-    onToggleSave: (MediaItem) -> Unit,
-    onDownload: (MediaItem) -> Unit
+    ownerName: String,
+    pinDetailsById: Map<String, Pin>,
+    onItemClick: (MediaItem) -> Unit,
+    onToggleSave: (MediaItem) -> Unit
 ) {
     if (media.isEmpty()) {
         EmptyPlaceholder(
@@ -366,8 +382,10 @@ private fun MediaGrid(
                     item = item,
                     isSaved = savedIds.contains(item.pinId ?: ""),
                     isSavedContext = isSavedContext,
-                    onSaveOrUnsave = { onToggleSave(item) },
-                    onDownload = { onDownload(item) }
+                    ownerName = ownerName,
+                    pinDetailsById = pinDetailsById,
+                    onClick = { onItemClick(item) },
+                    onSaveOrUnsave = { onToggleSave(item) }
                 )
             }
         }
@@ -379,81 +397,123 @@ private fun MediaItemCard(
     item: MediaItem,
     isSavedContext: Boolean,
     isSaved: Boolean,
-    onSaveOrUnsave: () -> Unit,
-    onDownload: () -> Unit
+    ownerName: String,
+    pinDetailsById: Map<String, Pin>,
+    onClick: () -> Unit,
+    onSaveOrUnsave: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { },
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-        ) {
-            // Show loading placeholder if no image
-            val imageUrl = item.media_url ?: item.thumbnail_url
-            if (imageUrl != null) {
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = item.public_id,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                // Placeholder when no image URL
-                Box(
+        Column {
+            // Image area (matches HomeScreen style)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            ) {
+                val imageUrl = item.media_url ?: item.thumbnail_url
+                if (imageUrl != null) {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = item.public_id,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFE0E0E0)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Outlined.BrokenImage,
+                            contentDescription = "No image",
+                            modifier = Modifier.size(48.dp),
+                            tint = Color(0xFF9E9E9E)
+                        )
+                    }
+                }
+
+                // Save / download buttons overlay (top-right)
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFE0E0E0)),
-                    contentAlignment = Alignment.Center
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Outlined.BrokenImage,
-                        contentDescription = "No image",
-                        modifier = Modifier.size(48.dp),
-                        tint = Color(0xFF9E9E9E)
+                    ActionButton(
+                        icon = if (isSavedContext) Icons.Outlined.BookmarkRemove
+                        else if (isSaved) Icons.Filled.Bookmark
+                        else Icons.Outlined.BookmarkBorder,
+                        tint = if (isSaved && !isSavedContext) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                        onClick = onSaveOrUnsave
                     )
                 }
             }
 
-            // Gradient overlay
-            Box(
+            // Info block using preloaded Pin details when available
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.6f)
-                            ),
-                            startY = 100f,
-                            endY = Float.POSITIVE_INFINITY
-                        )
-                    )
-            )
-
-            // Action buttons
-            Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .fillMaxWidth()
+                    .background(Color(0xFFEDE7F6))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                ActionButton(
-                    icon = if (isSavedContext) Icons.Outlined.BookmarkRemove
-                    else if (isSaved) Icons.Filled.Bookmark
-                    else Icons.Outlined.BookmarkBorder,
-                    tint = if (isSaved && !isSavedContext) Color(0xFFE60023) else Color(0xFF1C1C1C),
-                    onClick = onSaveOrUnsave
+                val pin = item.pinId?.let { pinDetailsById[it] }
+
+                val title = pin?.title ?: item.public_id ?: "My Pin"
+                Text(
+                    text = title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF1C1C1C),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                ActionButton(
-                    icon = Icons.Outlined.Download,
-                    onClick = onDownload
-                )
+
+                val description = pin?.description
+                val subtitle = when {
+                    !description.isNullOrBlank() -> description
+                    !item.format.isNullOrBlank() -> item.format
+                    !item.resource_type.isNullOrBlank() -> item.resource_type
+                    else -> ""
+                }
+                if (subtitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = Color(0xFF757575),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                val username = pin?.user?.username ?: ownerName.ifBlank { "you" }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = Color(0xFF8E8E93)
+                    )
+                    Text(
+                        text = username,
+                        fontSize = 12.sp,
+                        color = Color(0xFF8E8E93),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -489,68 +549,89 @@ private fun PinGrid(
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                    ) {
-                        AsyncImage(
-                            model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
-                            contentDescription = pin.title,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-
-                        // Gradient overlay
+                    Column {
+                        // Image (same as HomeScreen.PinCard)
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    androidx.compose.ui.graphics.Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color.Black.copy(alpha = 0.6f)
-                                        ),
-                                        startY = 100f,
-                                        endY = Float.POSITIVE_INFINITY
-                                    )
-                                )
-                        )
-
-                        // Action buttons
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                .fillMaxWidth()
+                                .height(200.dp)
                         ) {
-                            val isSaved = savedIds.contains(pin._id ?: "")
-                            ActionButton(
-                                icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
-                                onClick = { onPinToggleSave(pin) }
+                            AsyncImage(
+                                model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
+                                contentDescription = pin.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
-                            ActionButton(
-                                icon = Icons.Outlined.Download,
-                                onClick = { onPinDownload(pin) }
-                            )
+
+                            // Save / download overlay
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val isSaved = savedIds.contains(pin._id ?: "")
+                                ActionButton(
+                                    icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                    tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                                    onClick = { onPinToggleSave(pin) }
+                                )
+                                ActionButton(
+                                    icon = Icons.Outlined.Download,
+                                    onClick = { onPinDownload(pin) }
+                                )
+                            }
                         }
 
-                        // Pin title at bottom
-                        pin.title.let { title ->
-                            if (title.isNotBlank()) {
-                                Text(
-                                    text = title,
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                        // Text info block like HomeScreen.PinCard
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFEDE7F6))
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = pin.title,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1C1C1C),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            pin.description?.let { desc ->
+                                if (desc.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = desc,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF757575),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            pin.user?.let { user ->
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = Color(0xFF9E9E9E)
+                                    )
+                                    Text(
+                                        text = user.username,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF9E9E9E),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }
