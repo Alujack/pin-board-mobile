@@ -133,6 +133,8 @@ fun ModernCommentItem(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showLikesDialog by remember { mutableStateOf(false) }
+    
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -247,7 +249,8 @@ fun ModernCommentItem(
                             text = comment.likesCount.toString(),
                             fontSize = 13.sp,
                             color = if (comment.isLiked) Color(0xFFE60023) else Color(0xFF666666),
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable { showLikesDialog = true }
                         )
                     }
                 }
@@ -278,6 +281,42 @@ fun ModernCommentItem(
                 }
             }
         }
+    }
+    
+    // Show "View Likes" Dialog
+    if (showLikesDialog && comment.likesCount > 0) {
+        AlertDialog(
+            onDismissRequest = { showLikesDialog = false },
+            title = {
+                Text(
+                    text = "Likes",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "${comment.likesCount} ${if (comment.likesCount == 1) "person" else "people"} liked this comment",
+                        fontSize = 14.sp,
+                        color = Color(0xFF666666)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Feature to load user list will be implemented soon.",
+                        fontSize = 13.sp,
+                        color = Color(0xFF999999),
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLikesDialog = false }) {
+                    Text("Close")
+                }
+            },
+            shape = RoundedCornerShape(20.dp)
+        )
     }
 }
 

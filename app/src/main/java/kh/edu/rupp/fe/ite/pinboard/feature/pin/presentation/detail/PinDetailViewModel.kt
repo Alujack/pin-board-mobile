@@ -29,6 +29,7 @@ data class PinDetailUiState(
     val likesCount: Int = 0,
     val commentsCount: Int = 0,
     val comments: List<Comment> = emptyList(),
+    val relatedPins: List<Pin> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val isDownloading: Boolean = false,
@@ -50,6 +51,7 @@ constructor(
         private val createCommentUseCase: CreateCommentUseCase,
         private val getCommentsUseCase: GetCommentsUseCase,
         private val sharePinUseCase: SharePinUseCase,
+    private val getAllPinsUseCase: kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetAllPinsUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -61,6 +63,7 @@ constructor(
     init {
         loadPinDetails()
         loadComments()
+        loadRelatedPins()
     }
 
     private fun loadPinDetails() {
@@ -74,8 +77,15 @@ constructor(
 
             when (val result = getPinByIdUseCase(pinId)) {
                 is PinResult.Success -> {
+                    val pin = result.data
                     _uiState.update {
-                        it.copy(isLoading = false, pin = result.data, errorMessage = null)
+                        it.copy(
+                            isLoading = false, 
+                            pin = pin, 
+                            errorMessage = null,
+                            isLiked = pin.isLiked,
+                            likesCount = pin.likesCount
+                        )
                     }
                 }
                 is PinResult.Error -> {
@@ -182,6 +192,24 @@ constructor(
                 }
                 is PinResult.Error -> {
                     // Silently fail for comments
+                }
+            }
+        }
+    }
+    
+    private fun loadRelatedPins() {
+        viewModelScope.launch {
+            when (val result = getAllPinsUseCase()) {
+                is PinResult.Success -> {
+                    // Filter out current pin and take random 10 pins as related
+                    val related = result.data
+                        .filter { it._id != pinId }
+                        .shuffled()
+                        .take(10)
+                    _uiState.update { it.copy(relatedPins = related) }
+                }
+                is PinResult.Error -> {
+                    // Silently fail for related pins
                 }
             }
         }
