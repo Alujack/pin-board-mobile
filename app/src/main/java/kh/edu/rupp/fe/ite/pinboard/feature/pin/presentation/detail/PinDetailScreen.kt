@@ -71,6 +71,8 @@ fun PinDetailScreen(
                             isSaved = uiState.isSaved,
                             isLiked = uiState.isLiked,
                             likesCount = uiState.likesCount,
+                            commentsCount = uiState.commentsCount,
+                            comments = uiState.comments,
                             isFollowing = uiState.isFollowing,
                             isFollowLoading = uiState.isFollowLoading,
                             isDownloading = uiState.isDownloading,
@@ -152,6 +154,8 @@ private fun PinDetailContent(
         isSaved: Boolean,
         isLiked: Boolean,
         likesCount: Int,
+        commentsCount: Int,
+        comments: List<Comment>,
         isFollowing: Boolean,
         isFollowLoading: Boolean,
         isDownloading: Boolean,
@@ -273,7 +277,7 @@ private fun PinDetailContent(
 
                     ModernInteractionButton(
                             icon = Icons.Outlined.ChatBubbleOutline,
-                            text = "Comment",
+                            text = if (commentsCount > 0) "$commentsCount" else "Comment",
                             isActive = false,
                             onClick = onCommentClick,
                             modifier = Modifier.weight(1f)
@@ -411,6 +415,98 @@ private fun PinDetailContent(
 
                 Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+        
+        // Comments Section
+        if (comments.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                    // Comments header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Comments",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1C1C1C)
+                        )
+                        Text(
+                            text = "$commentsCount",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF757575)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Comments list (show max 5, with "View All" button)
+                    val displayComments = comments.take(5)
+                    displayComments.forEachIndexed { index, comment ->
+                        CommentItemCompact(comment = comment)
+                        if (index < displayComments.size - 1) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                    
+                    // Show "View All" button if there are more comments
+                    if (comments.size > 5) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TextButton(
+                            onClick = { /* TODO: Navigate to full comments screen */ },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "View all ${comments.size} comments",
+                                color = Color(0xFFE60023),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                Icons.Default.ArrowForward,
+                                contentDescription = "View all",
+                                tint = Color(0xFFE60023),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    
+                    // Add comment button
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onCommentClick,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE60023)
+                        )
+                    ) {
+                        Icon(
+                            Icons.Outlined.ChatBubbleOutline,
+                            contentDescription = "Add comment",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Add Comment",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
         
         // Related Pins Section
