@@ -59,5 +59,30 @@ class FCMTokenManager @Inject constructor(
             }
         }
     }
+
+    /**
+     * Remove FCM token from backend and local storage (call on logout)
+     */
+    fun removeFCMToken() {
+        scope.launch {
+            try {
+                // Remove from backend
+                when (val result = repository.removeFCMToken()) {
+                    is PinResult.Success -> {
+                        Log.d("FCMTokenManager", "FCM token removed from backend successfully")
+                    }
+                    is PinResult.Error -> {
+                        Log.e("FCMTokenManager", "Failed to remove FCM token from backend: ${result.message}")
+                    }
+                }
+                
+                // Remove from local storage
+                prefs.edit().remove("fcm_token").apply()
+                Log.d("FCMTokenManager", "FCM token removed from local storage")
+            } catch (e: Exception) {
+                Log.e("FCMTokenManager", "Failed to remove FCM token", e)
+            }
+        }
+    }
 }
 

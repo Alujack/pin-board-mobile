@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import kh.edu.rupp.fe.ite.pinboard.app.navigation.AuthNavGraph
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.services.FCMTokenManager
 import kh.edu.rupp.fe.ite.pinboard.ui.theme.PinboardTheme
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -21,9 +24,21 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var tokenManager: TokenManager
     
+    @Inject
+    lateinit var fcmTokenManager: FCMTokenManager
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Initialize FCM if user is already logged in (auto-login scenario)
+        lifecycleScope.launch {
+            val token = tokenManager.getToken()
+            if (!token.isNullOrEmpty()) {
+                // User is already logged in, register FCM token
+                fcmTokenManager.initializeFCM()
+            }
+        }
 
         setContent {
             PinboardTheme {
@@ -35,7 +50,8 @@ class MainActivity : ComponentActivity() {
 
                     AuthNavGraph(
                         navController = navController,
-                        tokenManager = tokenManager
+                        tokenManager = tokenManager,
+                        fcmTokenManager = fcmTokenManager
                     )
                 }
             }

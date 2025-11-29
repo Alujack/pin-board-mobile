@@ -446,4 +446,17 @@ constructor(
             PinResult.Error(e.toReadableMessage())
         }
     }
+
+    override suspend fun removeFCMToken(): PinResult<Unit> {
+        return try {
+            val response = notificationApi.removeFCMToken()
+            if (response.isSuccessful) {
+                PinResult.Success(Unit)
+            } else {
+                PinResult.Error("Failed to remove FCM token: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
 }
