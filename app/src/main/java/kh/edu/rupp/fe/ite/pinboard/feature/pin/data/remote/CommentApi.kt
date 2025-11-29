@@ -5,7 +5,7 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface CommentApi {
-    @GET("comment/getComments")
+    @GET("api/comment/getComments")
     suspend fun getComments(
         @Query("pinId") pinId: String,
         @Query("page") page: Int = 1,
@@ -13,27 +13,27 @@ interface CommentApi {
         @Query("sort") sort: String = "newest"
     ): Response<CommentResponse>
 
-    @POST("comment/createComment")
+    @POST("api/comment/createComment")
     suspend fun createComment(
         @Body request: CreateCommentRequest
     ): Response<CreateCommentResponse>
 
-    @PUT("comment/updateComment")
+    @PUT("api/comment/updateComment")
     suspend fun updateComment(
         @Body request: UpdateCommentRequest
     ): Response<CreateCommentResponse>
 
-    @DELETE("comment/deleteComment")
+    @DELETE("api/comment/deleteComment")
     suspend fun deleteComment(
         @Query("commentId") commentId: String
     ): Response<ApiResponse<Unit>>
 
-    @POST("comment/toggleCommentLike")
+    @POST("api/comment/toggleCommentLike")
     suspend fun toggleCommentLike(
         @Body request: ToggleCommentLikeRequest
     ): Response<ToggleLikeResponse>
 
-    @GET("comment/getComments")
+    @GET("api/comment/getComments")
     suspend fun getReplies(
         @Query("pinId") pinId: String,
         @Query("parent_comment") parentCommentId: String,
