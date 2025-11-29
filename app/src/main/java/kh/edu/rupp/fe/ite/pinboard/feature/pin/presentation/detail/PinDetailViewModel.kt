@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
@@ -16,6 +17,9 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SharePinUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.TogglePinLikeUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.FollowUserUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnfollowUserUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.repository.UserActionResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +40,7 @@ data class PinDetailUiState(
     val downloadMessage: String? = null,
     val isFollowing: Boolean = false,
     val isFollowLoading: Boolean = false,
+    val showFollowButton: Boolean = true,
     val pendingShareUrl: String? = null
 )
 
@@ -52,6 +57,9 @@ constructor(
         private val getCommentsUseCase: GetCommentsUseCase,
         private val sharePinUseCase: SharePinUseCase,
     private val getAllPinsUseCase: kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetAllPinsUseCase,
+    private val followUserUseCase: FollowUserUseCase,
+    private val unfollowUserUseCase: UnfollowUserUseCase,
+    private val authApi: AuthApi,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -87,10 +95,44 @@ constructor(
                             likesCount = pin.likesCount
                         )
                     }
+                    loadFollowState(pin)
                 }
                 is PinResult.Error -> {
                     _uiState.update { it.copy(isLoading = false, errorMessage = result.message) }
                 }
+            }
+        }
+    }
+
+    private fun loadFollowState(pin: Pin) {
+        val ownerId = pin.user?._id ?: return
+
+        viewModelScope.launch {
+            try {
+                // Get current user
+                val me = authApi.me()
+
+                // Hide follow button if this is the current user's own pin
+                if (me._id == ownerId) {
+                    _uiState.update { it.copy(showFollowButton = false) }
+                    return@launch
+                }
+
+                // Otherwise, check if current user already follows the owner
+                val response = authApi.checkFollowing(ownerId)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null && body.success) {
+                        _uiState.update {
+                            it.copy(
+                                isFollowing = body.data.following,
+                                showFollowButton = true
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore follow state errors for now
             }
         }
     }
@@ -116,15 +158,37 @@ constructor(
     }
 
     fun onFollowClicked() {
-        val current = _uiState.value
-        val user = current.pin?.user ?: return
-
-        // UI-only toggle for now; can be replaced with real follow/unfollow API
-        _uiState.update { it.copy(isFollowLoading = true) }
+        val userId = _uiState.value.pin?.user?._id ?: return
 
         viewModelScope.launch {
-            // Simulate immediate completion; hook API here later
-            _uiState.update { it.copy(isFollowing = !it.isFollowing, isFollowLoading = false) }
+            _uiState.update { it.copy(isFollowLoading = true, errorMessage = null) }
+
+            val currentlyFollowing = _uiState.value.isFollowing
+
+            val result = if (currentlyFollowing) {
+                unfollowUserUseCase(userId)
+            } else {
+                followUserUseCase(userId)
+            }
+
+            when (result) {
+                is UserActionResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isFollowing = !currentlyFollowing,
+                            isFollowLoading = false
+                        )
+                    }
+                }
+                is UserActionResult.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isFollowLoading = false,
+                            errorMessage = result.message
+                        )
+                    }
+                }
+            }
         }
     }
 

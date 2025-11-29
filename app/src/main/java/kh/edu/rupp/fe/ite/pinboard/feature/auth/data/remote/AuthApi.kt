@@ -5,6 +5,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface AuthApi {
 
@@ -24,6 +25,46 @@ interface AuthApi {
     // Get user profile with stats
     @GET("api/users/me")
     suspend fun getCurrentUserProfile(): Response<UserProfileResponse>
+
+    // Follow / Unfollow another user
+    // Backend routes: /follow/followUser and /follow/unfollowUser
+    @POST("api/follow/followUser")
+    suspend fun followUser(@Body request: FollowUserRequest): Response<FollowActionResponse>
+
+    @POST("api/follow/unfollowUser")
+    suspend fun unfollowUser(@Body request: FollowUserRequest): Response<FollowActionResponse>
+
+    // Get followers of a user
+    // GET /follow/getFollowers?userId=...&page=...&limit=...
+    @GET("api/follow/getFollowers")
+    suspend fun getFollowers(
+        @Query("userId") userId: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Response<FollowListResponse>
+
+    // Get users that a user is following
+    // GET /follow/getFollowing?userId=...&page=...&limit=...
+    @GET("api/follow/getFollowing")
+    suspend fun getFollowing(
+        @Query("userId") userId: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Response<FollowListResponse>
+
+    // Check if current user is following another user
+    // GET /follow/checkFollowing?userId=...
+    @GET("api/follow/checkFollowing")
+    suspend fun checkFollowing(
+        @Query("userId") userId: String
+    ): Response<CheckFollowingResponse>
+
+    // Get suggested users to follow
+    // GET /follow/getSuggestedUsers?limit=...
+    @GET("api/follow/getSuggestedUsers")
+    suspend fun getSuggestedUsers(
+        @Query("limit") limit: Int = 10
+    ): Response<FollowListResponse>
 }
 
 // Request models
@@ -114,4 +155,33 @@ data class UserProfileData(
     val followingCount: Int,
     val pinsCount: Int,
     val isFollowing: Boolean
+)
+
+// Follow/unfollow request body
+data class FollowUserRequest(
+    val userId: String
+)
+
+// Generic follow/unfollow response
+data class FollowActionResponse(
+    val success: Boolean,
+    val message: String
+)
+
+// List response for followers / following / suggested users
+data class FollowListResponse(
+    val success: Boolean,
+    val message: String,
+    val data: List<UserProfileData>
+)
+
+// Response for checkFollowing endpoint
+data class CheckFollowingResponse(
+    val success: Boolean,
+    val message: String,
+    val data: CheckFollowingData
+)
+
+data class CheckFollowingData(
+    val following: Boolean
 )
