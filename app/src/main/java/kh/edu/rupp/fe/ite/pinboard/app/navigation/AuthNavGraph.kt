@@ -152,6 +152,9 @@ fun AuthNavGraph(
             SearchScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onOpenPinDetail = { pinId ->
+                    navController.navigate(Screen.PinDetail.createRoute(pinId))
                 }
             )
         }
@@ -286,7 +289,12 @@ fun MainHomeScreen(
                         navController.navigate(Screen.PinDetail.createRoute(pinId))
                     }
                 )
-                BottomTab.Search -> SearchScreen(onNavigateBack = { selectedTab = BottomTab.Home })
+                BottomTab.Search -> SearchScreen(
+                    onNavigateBack = { selectedTab = BottomTab.Home },
+                    onOpenPinDetail = { pinId ->
+                        navController.navigate(Screen.PinDetail.createRoute(pinId))
+                    }
+                )
                 BottomTab.Messages -> NotificationsScreen()
                 BottomTab.Profile -> ProfileScreen(
                     onNavigateBack = { selectedTab = BottomTab.Home },

@@ -77,6 +77,7 @@ fun PinDetailScreen(
                             isFollowLoading = uiState.isFollowLoading,
                             isDownloading = uiState.isDownloading,
                             relatedPins = uiState.relatedPins,
+                            showFollowButton = uiState.showFollowButton,
                             onToggleSave = { viewModel.toggleSavePin() },
                             onToggleLike = { viewModel.toggleLike() },
                             onShare = { viewModel.onShareClicked() },
@@ -160,6 +161,7 @@ private fun PinDetailContent(
         isFollowLoading: Boolean,
         isDownloading: Boolean,
         relatedPins: List<Pin>,
+        showFollowButton: Boolean,
         onToggleSave: () -> Unit,
         onToggleLike: () -> Unit,
         onShare: () -> Unit,
@@ -401,16 +403,19 @@ private fun PinDetailContent(
                         }
                     }
 
-                    Button(
-                            onClick = onFollow,
-                            shape = RoundedCornerShape(24.dp),
-                            colors =
-                                    ButtonDefaults.buttonColors(
-                                            containerColor =
-                                                    if (isFollowing) Color(0xFFBDBDBD)
-                                                    else Color(0xFFE60023)
-                                    )
-                    ) { Text(text = if (isFollowing) "Following" else "Follow") }
+                    if (showFollowButton) {
+                        Button(
+                                onClick = onFollow,
+                                enabled = !isFollowLoading,
+                                shape = RoundedCornerShape(24.dp),
+                                colors =
+                                        ButtonDefaults.buttonColors(
+                                                containerColor =
+                                                        if (isFollowing) Color(0xFFBDBDBD)
+                                                        else Color(0xFFE60023)
+                                        )
+                        ) { Text(text = if (isFollowing) "Unfollow" else "Follow") }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
