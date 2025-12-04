@@ -13,7 +13,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Initialize FCM token registration
-        fcmTokenManager.initializeFCM()
+        // Note: FCM token registration moved to after login
+        // See LoginViewModel for FCM token registration after successful authentication
     }
 }

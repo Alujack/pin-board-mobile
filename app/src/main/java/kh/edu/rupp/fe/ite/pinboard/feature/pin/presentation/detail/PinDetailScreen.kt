@@ -1,8 +1,11 @@
 package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.detail
 
 import android.content.Intent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +36,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 fun PinDetailScreen(
         onNavigateBack: () -> Unit,
         onNavigateToComments: (String) -> Unit = {},
+        onNavigateToPin: (String) -> Unit = {},
         viewModel: PinDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -67,15 +71,20 @@ fun PinDetailScreen(
                             isSaved = uiState.isSaved,
                             isLiked = uiState.isLiked,
                             likesCount = uiState.likesCount,
+                            commentsCount = uiState.commentsCount,
+                            comments = uiState.comments,
                             isFollowing = uiState.isFollowing,
                             isFollowLoading = uiState.isFollowLoading,
                             isDownloading = uiState.isDownloading,
+                            relatedPins = uiState.relatedPins,
+                            showFollowButton = uiState.showFollowButton,
                             onToggleSave = { viewModel.toggleSavePin() },
                             onToggleLike = { viewModel.toggleLike() },
                             onShare = { viewModel.onShareClicked() },
                             onDownload = { viewModel.onDownloadClicked() },
                             onFollow = { viewModel.onFollowClicked() },
-                            onCommentClick = { showCommentDialog = true }
+                            onCommentClick = { showCommentDialog = true },
+                            onRelatedPinClick = onNavigateToPin
                     )
                 }
                 uiState.errorMessage != null -> {
@@ -139,21 +148,27 @@ fun PinDetailScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PinDetailContent(
         pin: Pin,
         isSaved: Boolean,
         isLiked: Boolean,
         likesCount: Int,
+        commentsCount: Int,
+        comments: List<Comment>,
         isFollowing: Boolean,
         isFollowLoading: Boolean,
         isDownloading: Boolean,
+        relatedPins: List<Pin>,
+        showFollowButton: Boolean,
         onToggleSave: () -> Unit,
         onToggleLike: () -> Unit,
         onShare: () -> Unit,
         onDownload: () -> Unit,
         onFollow: () -> Unit,
-        onCommentClick: () -> Unit
+        onCommentClick: () -> Unit,
+        onRelatedPinClick: (String) -> Unit
 ) {
     Column(
             modifier =
@@ -161,55 +176,70 @@ private fun PinDetailContent(
                             .verticalScroll(rememberScrollState())
                             .background(Color(0xFFF8F8F8))
     ) {
-        // Pin Image with gradient overlay
-        Box(modifier = Modifier.fillMaxWidth().height(450.dp)) {
-            AsyncImage(
-                    model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
-                    contentDescription = pin.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+        // Multi-Media Carousel (with single image fallback)
+        val mediaList = pin.media ?: emptyList()
+        
+        if (mediaList.isNotEmpty()) {
+            MediaCarousel(
+                media = mediaList,
+                modifier = Modifier.fillMaxWidth().height(450.dp),
+                isSaved = isSaved,
+                onToggleSave = onToggleSave,
+                onShare = onShare,
+                onDownload = onDownload,
+                isDownloading = isDownloading
             )
+        } else {
+            // Fallback for single image
+            Box(modifier = Modifier.fillMaxWidth().height(450.dp)) {
+                AsyncImage(
+                        model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
+                        contentDescription = pin.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                )
 
-            // Gradient overlay at bottom
-            Box(
-                    modifier =
-                            Modifier.fillMaxWidth()
-                                    .height(120.dp)
-                                    .align(Alignment.BottomCenter)
-                                    .background(
-                                            Brush.verticalGradient(
-                                                    colors =
-                                                            listOf(
-                                                                    Color.Transparent,
-                                                                    Color.Black.copy(alpha = 0.7f)
-                                                            )
-                                            )
-                                    )
-            )
+                // Gradient overlay at bottom
+                Box(
+                        modifier =
+                                Modifier.fillMaxWidth()
+                                        .height(120.dp)
+                                        .align(Alignment.BottomCenter)
+                                        .background(
+                                                Brush.verticalGradient(
+                                                        colors =
+                                                                listOf(
+                                                                        Color.Transparent,
+                                                                        Color.Black.copy(alpha = 0.7f)
+                                                                )
+                                                )
+                                        )
+                )
 
-            // Action buttons overlay
-            Row(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ModernActionButton(
-                        icon =
-                                if (isSaved) Icons.Filled.Bookmark
-                                else Icons.Outlined.BookmarkBorder,
-                        onClick = onToggleSave,
-                        tint = if (isSaved) Color(0xFFE60023) else Color.White
-                )
-                ModernActionButton(icon = Icons.Outlined.Share, onClick = onShare)
-                ModernActionButton(
-                        icon =
-                                if (isDownloading) Icons.Filled.Download
-                                else Icons.Outlined.Download,
-                        onClick = onDownload
-                )
-                ModernActionButton(
-                        icon = Icons.Outlined.MoreVert,
-                        onClick = { /* TODO: Implement more options */}
-                )
+                // Action buttons overlay
+                Row(
+                        modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ModernActionButton(
+                            icon =
+                                    if (isSaved) Icons.Filled.Bookmark
+                                    else Icons.Outlined.BookmarkBorder,
+                            onClick = onToggleSave,
+                            tint = if (isSaved) Color(0xFFE60023) else Color.White
+                    )
+                    ModernActionButton(icon = Icons.Outlined.Share, onClick = onShare)
+                    ModernActionButton(
+                            icon =
+                                    if (isDownloading) Icons.Filled.Download
+                                    else Icons.Outlined.Download,
+                            onClick = onDownload
+                    )
+                    ModernActionButton(
+                            icon = Icons.Outlined.MoreVert,
+                            onClick = { /* TODO: Implement more options */}
+                    )
+                }
             }
         }
 
@@ -249,7 +279,7 @@ private fun PinDetailContent(
 
                     ModernInteractionButton(
                             icon = Icons.Outlined.ChatBubbleOutline,
-                            text = "Comment",
+                            text = if (commentsCount > 0) "$commentsCount" else "Comment",
                             isActive = false,
                             onClick = onCommentClick,
                             modifier = Modifier.weight(1f)
@@ -373,20 +403,126 @@ private fun PinDetailContent(
                         }
                     }
 
-                    Button(
-                            onClick = onFollow,
-                            shape = RoundedCornerShape(24.dp),
-                            colors =
-                                    ButtonDefaults.buttonColors(
-                                            containerColor =
-                                                    if (isFollowing) Color(0xFFBDBDBD)
-                                                    else Color(0xFFE60023)
-                                    )
-                    ) { Text(text = if (isFollowing) "Following" else "Follow") }
+                    if (showFollowButton) {
+                        Button(
+                                onClick = onFollow,
+                                enabled = !isFollowLoading,
+                                shape = RoundedCornerShape(24.dp),
+                                colors =
+                                        ButtonDefaults.buttonColors(
+                                                containerColor =
+                                                        if (isFollowing) Color(0xFFBDBDBD)
+                                                        else Color(0xFFE60023)
+                                        )
+                        ) { Text(text = if (isFollowing) "Unfollow" else "Follow") }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+        
+        // Comments Section
+        if (comments.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                    // Comments header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Comments",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1C1C1C)
+                        )
+                        Text(
+                            text = "$commentsCount",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF757575)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Comments list (show max 5, with "View All" button)
+                    val displayComments = comments.take(5)
+                    displayComments.forEachIndexed { index, comment ->
+                        CommentItemCompact(comment = comment)
+                        if (index < displayComments.size - 1) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                    
+                    // Show "View All" button if there are more comments
+                    if (comments.size > 5) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        TextButton(
+                            onClick = { /* TODO: Navigate to full comments screen */ },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "View all ${comments.size} comments",
+                                color = Color(0xFFE60023),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                Icons.Default.ArrowForward,
+                                contentDescription = "View all",
+                                tint = Color(0xFFE60023),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    
+                    // Add comment button
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onCommentClick,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE60023)
+                        )
+                    ) {
+                        Icon(
+                            Icons.Outlined.ChatBubbleOutline,
+                            contentDescription = "Add comment",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Add Comment",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        
+        // Related Pins Section
+        if (relatedPins.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.components.RelatedPinsSection(
+                relatedPins = relatedPins,
+                onPinClick = { pinId -> pinId?.let { onRelatedPinClick(it) } },
+                onSaveClick = { /* TODO: Implement save for related pins */ },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -592,6 +728,137 @@ private fun SuccessSnackbar(message: String, onDismiss: () -> Unit, modifier: Mo
             )
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color(0xFF2E7D32))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MediaCarousel(
+    media: List<kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Media>,
+    modifier: Modifier = Modifier,
+    isSaved: Boolean,
+    onToggleSave: () -> Unit,
+    onShare: () -> Unit,
+    onDownload: () -> Unit,
+    isDownloading: Boolean
+) {
+    val pagerState = rememberPagerState(pageCount = { media.size })
+    
+    Box(modifier = modifier) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val mediaItem = media[page]
+            Box(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = mediaItem.mediaUrl,
+                    contentDescription = "Media ${page + 1}",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                
+                // Gradient overlay at bottom
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.7f)
+                                )
+                            )
+                        )
+                )
+                
+                // Media type indicator (image/video)
+                if (mediaItem.resourceType == "video") {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(64.dp),
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = 0.5f)
+                    ) {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = "Video",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Page indicator
+        if (media.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                repeat(media.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .size(if (pagerState.currentPage == index) 8.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (pagerState.currentPage == index) 
+                                    Color.White 
+                                else 
+                                    Color.White.copy(alpha = 0.5f)
+                            )
+                    )
+                }
+            }
+        }
+        
+        // Action buttons overlay
+        Row(
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ModernActionButton(
+                icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                onClick = onToggleSave,
+                tint = if (isSaved) Color(0xFFE60023) else Color.White
+            )
+            ModernActionButton(icon = Icons.Outlined.Share, onClick = onShare)
+            ModernActionButton(
+                icon = if (isDownloading) Icons.Filled.Download else Icons.Outlined.Download,
+                onClick = onDownload
+            )
+            ModernActionButton(
+                icon = Icons.Outlined.MoreVert,
+                onClick = { /* TODO: Implement more options */ }
+            )
+        }
+        
+        // Counter badge (e.g., "1/5")
+        if (media.size > 1) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Black.copy(alpha = 0.5f)
+            ) {
+                Text(
+                    text = "${pagerState.currentPage + 1}/${media.size}",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
         }
     }

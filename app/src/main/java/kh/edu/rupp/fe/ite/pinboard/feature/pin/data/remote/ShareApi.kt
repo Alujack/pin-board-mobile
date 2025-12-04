@@ -4,17 +4,17 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface ShareApi {
-    @POST("share/sharePin")
+    @POST("api/share/sharePin")
     suspend fun sharePin(
         @Body request: Map<String, String>
     ): Response<SharePinResponse>
 
-    @GET("share/getShareCount")
+    @GET("api/share/getShareCount")
     suspend fun getShareCount(
         @Query("pinId") pinId: String
     ): Response<ShareCountResponse>
 
-    @GET("share/generateShareLink")
+    @GET("api/share/generateShareLink")
     suspend fun generateShareLink(
         @Query("pinId") pinId: String
     ): Response<ShareLinkResponse>

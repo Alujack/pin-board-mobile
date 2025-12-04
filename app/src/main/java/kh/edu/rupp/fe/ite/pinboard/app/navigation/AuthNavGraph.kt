@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -33,6 +34,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.home.HomeScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.detail.PinDetailScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.board.BoardDetailScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.notifications.NotificationsScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.services.FCMTokenManager
 
 sealed class Screen(val route: String) {
     object Login : Screen("login")
@@ -56,7 +58,8 @@ sealed class Screen(val route: String) {
 @Composable
 fun AuthNavGraph(
     navController: NavHostController,
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    fcmTokenManager: FCMTokenManager
 ) {
     val context = LocalContext.current
     var startDestination by remember { mutableStateOf(Screen.Login.route) }
@@ -108,7 +111,13 @@ fun AuthNavGraph(
                 navController = navController,
                 onLogout = {
                     scope.launch {
+                        // Remove FCM token from backend
+                        fcmTokenManager.removeFCMToken()
+                        
+                        // Clear auth tokens
                         tokenManager.clearAllTokens()
+                        
+                        // Navigate to login
                         navController.navigate(Screen.Login.route) {
                             popUpTo(Screen.Home.route) { inclusive = true }
                         }
@@ -143,6 +152,9 @@ fun AuthNavGraph(
             SearchScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onOpenPinDetail = { pinId ->
+                    navController.navigate(Screen.PinDetail.createRoute(pinId))
                 }
             )
         }
@@ -277,7 +289,12 @@ fun MainHomeScreen(
                         navController.navigate(Screen.PinDetail.createRoute(pinId))
                     }
                 )
-                BottomTab.Search -> SearchScreen(onNavigateBack = { selectedTab = BottomTab.Home })
+                BottomTab.Search -> SearchScreen(
+                    onNavigateBack = { selectedTab = BottomTab.Home },
+                    onOpenPinDetail = { pinId ->
+                        navController.navigate(Screen.PinDetail.createRoute(pinId))
+                    }
+                )
                 BottomTab.Messages -> NotificationsScreen()
                 BottomTab.Profile -> ProfileScreen(
                     onNavigateBack = { selectedTab = BottomTab.Home },

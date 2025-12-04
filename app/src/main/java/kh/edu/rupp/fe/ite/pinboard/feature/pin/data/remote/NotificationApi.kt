@@ -5,26 +5,26 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface NotificationApi {
-    @POST("notifications/register-token")
+    @POST("api/notifications/register-token")
     suspend fun registerFCMToken(
         @Body request: Map<String, String>
     ): Response<ApiResponse<RegisterTokenResponse>>
 
-    @POST("notifications/remove-token")
+    @POST("api/notifications/remove-token")
     suspend fun removeFCMToken(): Response<ApiResponse<Unit>>
 
-    @GET("notifications")
+    @GET("api/notifications")
     suspend fun getNotifications(
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 20
     ): Response<NotificationListResponse>
 
-    @POST("notifications/mark-read")
+    @POST("api/notifications/mark-read")
     suspend fun markAsRead(
         @Body request: Map<String, String>
     ): Response<ApiResponse<Unit>>
 
-    @POST("notifications/mark-all-read")
+    @POST("api/notifications/mark-all-read")
     suspend fun markAllAsRead(): Response<ApiResponse<Unit>>
 }
 

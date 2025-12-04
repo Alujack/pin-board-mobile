@@ -85,22 +85,22 @@ constructor(
             }
 
     override suspend fun searchPins(query: String): PinResult<List<Pin>> {
-        return try {
-            val response = api.searchPins(query)
-
-            if (response.success) {
-                PinResult.Success(response.data)
-            } else {
-                PinResult.Error(response.message)
+    return try {
+        val response = api.searchPins(query)
+        
+        if (response.success) {
+            // Filter results to only include pins where the title contains the query (case-insensitive)
+            val filteredResults = response.data.filter { pin ->
+                pin.title.contains(query, ignoreCase = true)
             }
-        } catch (e: HttpException) {
-            PinResult.Error("Network error: ${e.code()} ${e.message()}")
-        } catch (e: JsonSyntaxException) {
-            PinResult.Error("Invalid response format: ${e.message}")
-        } catch (e: Exception) {
-            PinResult.Error(e.message ?: "Search failed")
+            PinResult.Success(filteredResults)
+        } else {
+            PinResult.Error(response.message)
         }
+    } catch (e: Exception) {
+        PinResult.Error(e.message ?: "An unknown error occurred")
     }
+}
 
     override suspend fun getAllPins(): PinResult<List<Pin>> {
         return try {
@@ -441,6 +441,19 @@ constructor(
                 PinResult.Success(Unit)
             } else {
                 PinResult.Error("Failed to register FCM token: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
+    override suspend fun removeFCMToken(): PinResult<Unit> {
+        return try {
+            val response = notificationApi.removeFCMToken()
+            if (response.isSuccessful) {
+                PinResult.Success(Unit)
+            } else {
+                PinResult.Error("Failed to remove FCM token: ${response.code()}")
             }
         } catch (e: Exception) {
             PinResult.Error(e.toReadableMessage())

@@ -32,6 +32,12 @@ data class Pin(
 
     @SerializedName("updatedAt")
     val updatedAt: String?,
+    
+    @SerializedName("likesCount")
+    val likesCount: Int = 0,
+    
+    @SerializedName("isLiked")
+    val isLiked: Boolean = false,
 
     @SerializedName("id")
     val id: String? = null

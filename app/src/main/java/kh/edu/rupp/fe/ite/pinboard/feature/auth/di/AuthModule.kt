@@ -13,7 +13,9 @@ import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.AuthApi
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.NetworkClient
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.repository.AuthRepositoryImpl
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.repository.UserRepositoryImpl
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.repository.AuthRepository
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.repository.UserRepository
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -80,5 +82,11 @@ object AuthModule {
     @Singleton
     fun provideAuthRepository(authApi: AuthApi, tokenManager: TokenManager): AuthRepository {
         return AuthRepositoryImpl(authApi, tokenManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserRepository(authApi: AuthApi): UserRepository {
+        return UserRepositoryImpl(authApi)
     }
 }

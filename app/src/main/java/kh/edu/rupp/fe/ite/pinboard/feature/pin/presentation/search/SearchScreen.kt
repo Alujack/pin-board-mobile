@@ -29,6 +29,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 @Composable
 fun SearchScreen(
     onNavigateBack: () -> Unit,
+    onOpenPinDetail: (String) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -92,7 +93,11 @@ fun SearchScreen(
                             PinItem(
                                 pin = pin,
                                 isSaved = isSaved,
-                                onClick = { /* TODO: Navigate to pin detail */ },
+                                onClick = {
+                                    if (id.isNotBlank()) {
+                                        onOpenPinDetail(id)
+                                    }
+                                },
                                 onToggleSave = {
                                     if (id.isNotBlank()) {
                                         if (isSaved) {

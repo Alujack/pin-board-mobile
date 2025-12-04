@@ -18,6 +18,7 @@ import javax.inject.Inject
 data class HomeUiState(
     val pins: List<Pin> = emptyList(),
     val savedPinIds: Set<String> = emptySet(),
+    val likedPinIds: Map<String, Boolean> = emptyMap(), // Track like state
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null
@@ -27,7 +28,8 @@ data class HomeUiState(
 class HomeViewModel @Inject constructor(
     private val getAllPinsUseCase: GetAllPinsUseCase,
     private val savePinUseCase: SavePinUseCase,
-    private val unsavePinUseCase: UnsavePinUseCase
+    private val unsavePinUseCase: UnsavePinUseCase,
+    private val togglePinLikeUseCase: kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.TogglePinLikeUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -43,10 +45,15 @@ class HomeViewModel @Inject constructor(
 
             when (val result = getAllPinsUseCase()) {
                 is PinResult.Success -> {
+                    // Initialize like states from API response
+                    val likeStates = result.data.associate { pin ->
+                        (pin._id ?: "") to pin.isLiked
+                    }
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             pins = result.data,
+                            likedPinIds = likeStates,
                             errorMessage = null
                         )
                     }
@@ -69,10 +76,15 @@ class HomeViewModel @Inject constructor(
 
             when (val result = getAllPinsUseCase()) {
                 is PinResult.Success -> {
+                    // Update like states from API response
+                    val likeStates = result.data.associate { pin ->
+                        (pin._id ?: "") to pin.isLiked
+                    }
                     _uiState.update {
                         it.copy(
                             isRefreshing = false,
                             pins = result.data,
+                            likedPinIds = likeStates,
                             errorMessage = null
                         )
                     }
@@ -110,6 +122,42 @@ class HomeViewModel @Inject constructor(
                             currentState.savedPinIds + pinId
                         }
                         currentState.copy(savedPinIds = updatedSavedIds)
+                    }
+                }
+                is PinResult.Error -> {
+                    _uiState.update { it.copy(errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
+    fun toggleLike(pinId: String) {
+        if (pinId.isBlank()) return
+
+        viewModelScope.launch {
+            when (val result = togglePinLikeUseCase(pinId)) {
+                is PinResult.Success -> {
+                    // Update the like state for this pin
+                    _uiState.update { currentState ->
+                        val updatedLikes = currentState.likedPinIds.toMutableMap()
+                        updatedLikes[pinId] = result.data.isLiked
+                        
+                        // Also update the pin's like count in the list
+                        val updatedPins = currentState.pins.map { pin ->
+                            if (pin._id == pinId) {
+                                pin.copy(
+                                    isLiked = result.data.isLiked,
+                                    likesCount = result.data.likesCount
+                                )
+                            } else {
+                                pin
+                            }
+                        }
+                        
+                        currentState.copy(
+                            likedPinIds = updatedLikes,
+                            pins = updatedPins
+                        )
                     }
                 }
                 is PinResult.Error -> {

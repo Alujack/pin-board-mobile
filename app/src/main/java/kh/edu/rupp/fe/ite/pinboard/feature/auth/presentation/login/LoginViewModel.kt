@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.repository.AuthRepository
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.domain.repository.AuthResult
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.services.FCMTokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +22,8 @@ data class LoginState(
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+private val authRepository: AuthRepository,
+private val fcmTokenManager: FCMTokenManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -60,6 +62,9 @@ class LoginViewModel @Inject constructor(
                         isLoading = false,
                         isLoginSuccessful = true
                     )
+                    
+                    // Register FCM token after successful login
+                    fcmTokenManager.initializeFCM()
                 }
                 is AuthResult.Error -> {
                     _state.value = currentState.copy(

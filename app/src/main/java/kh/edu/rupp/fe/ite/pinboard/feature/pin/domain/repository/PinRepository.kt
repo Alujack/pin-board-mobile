@@ -55,4 +55,5 @@ interface PinRepository {
     suspend fun markNotificationAsRead(notificationId: String): PinResult<Unit>
     suspend fun markAllNotificationsAsRead(): PinResult<Unit>
     suspend fun registerFCMToken(token: String): PinResult<Unit>
+    suspend fun removeFCMToken(): PinResult<Unit>
 }
