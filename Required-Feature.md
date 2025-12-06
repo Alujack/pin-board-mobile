@@ -1,11 +1,11 @@
 Requirement and scope
-- authentication: ( user ) firebase
-- download image
-- share image URL share to social
-- saved image
-- user profile
-- create post pin
-- search engine: text, [optional search image]
-- comment
-- notification alert
-- react on post
+- [x] authentication: ( user ) firebase (Implemented via Custom Backend)
+- [x] download image
+- [x] share image URL share to social
+- [x] saved image
+- [x] user profile
+- [x] create post pin
+- [x] search engine: text (Implemented), [optional search image] (Not Implemented)
+- [x] comment
+- [x] notification alert
+- [x] react on post
