@@ -1,0 +1,11 @@
+Requirement and scope
+- authentication: ( user ) firebase
+- download image
+- share image URL share to social
+- saved image
+- user profile
+- create post pin
+- search engine: text, [optional search image]
+- comment
+- notification alert
+- react on post
