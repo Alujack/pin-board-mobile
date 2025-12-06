@@ -73,8 +73,10 @@ fun PinDetailScreen(
                             likesCount = uiState.likesCount,
                             commentsCount = uiState.commentsCount,
                             comments = uiState.comments,
+
                             isFollowing = uiState.isFollowing,
                             isFollowLoading = uiState.isFollowLoading,
+                            isCheckingFollow = uiState.isCheckingFollow,
                             isDownloading = uiState.isDownloading,
                             relatedPins = uiState.relatedPins,
                             showFollowButton = uiState.showFollowButton,
@@ -158,7 +160,9 @@ private fun PinDetailContent(
         commentsCount: Int,
         comments: List<Comment>,
         isFollowing: Boolean,
+
         isFollowLoading: Boolean,
+        isCheckingFollow: Boolean,
         isDownloading: Boolean,
         relatedPins: List<Pin>,
         showFollowButton: Boolean,
@@ -403,7 +407,13 @@ private fun PinDetailContent(
                         }
                     }
 
-                    if (showFollowButton) {
+                    if (isCheckingFollow) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = Color(0xFFE60023)
+                        )
+                    } else if (showFollowButton) {
                         Button(
                                 onClick = onFollow,
                                 enabled = !isFollowLoading,

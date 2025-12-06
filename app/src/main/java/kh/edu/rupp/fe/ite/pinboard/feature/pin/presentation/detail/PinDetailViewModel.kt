@@ -41,7 +41,8 @@ data class PinDetailUiState(
     val isFollowing: Boolean = false,
     val isFollowLoading: Boolean = false,
     val showFollowButton: Boolean = true,
-    val pendingShareUrl: String? = null
+    val pendingShareUrl: String? = null,
+    val isCheckingFollow: Boolean = false
 )
 
 @HiltViewModel
@@ -107,32 +108,32 @@ constructor(
     private fun loadFollowState(pin: Pin) {
         val ownerId = pin.user?._id ?: return
 
+        _uiState.update { it.copy(isCheckingFollow = true) }
+
         viewModelScope.launch {
             try {
-                // Get current user
-                val me = authApi.me()
-
-                // Hide follow button if this is the current user's own pin
-                if (me._id == ownerId) {
-                    _uiState.update { it.copy(showFollowButton = false) }
-                    return@launch
-                }
-
-                // Otherwise, check if current user already follows the owner
+                // Check follow status
                 val response = authApi.checkFollowing(ownerId)
                 if (response.isSuccessful) {
                     val body = response.body()
                     if (body != null && body.success) {
+                        val status = body.data.status
                         _uiState.update {
                             it.copy(
-                                isFollowing = body.data.following,
-                                showFollowButton = true
+                                isFollowing = status == "following",
+                                showFollowButton = status != "self",
+                                isCheckingFollow = false
                             )
                         }
+                    } else {
+                        _uiState.update { it.copy(isCheckingFollow = false) }
                     }
+                } else {
+                    _uiState.update { it.copy(isCheckingFollow = false) }
                 }
             } catch (e: Exception) {
                 // Ignore follow state errors for now
+                _uiState.update { it.copy(isCheckingFollow = false) }
             }
         }
     }
