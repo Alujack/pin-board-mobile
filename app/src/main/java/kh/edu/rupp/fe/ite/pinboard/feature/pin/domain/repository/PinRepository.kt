@@ -11,6 +11,11 @@ sealed class PinResult<out T> {
 
 interface PinRepository {
     suspend fun getBoards(): PinResult<List<Board>>
+    suspend fun createBoard(
+        name: String,
+        description: String?,
+        isPublic: Boolean
+    ): PinResult<Board>
     suspend fun createPin(
         title: String,
         board: String,

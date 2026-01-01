@@ -42,6 +42,22 @@ constructor(
             }
                     .getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
 
+    override suspend fun createBoard(
+            name: String,
+            description: String?,
+            isPublic: Boolean
+    ): PinResult<Board> =
+            runCatching {
+                val request = kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.CreateBoardRequest(
+                    name = name,
+                    description = description,
+                    is_public = isPublic
+                )
+                val resp = api.createBoard(request)
+                PinResult.Success(resp.data)
+            }
+                    .getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
+
     override suspend fun createPin(
             title: String,
             board: String,
