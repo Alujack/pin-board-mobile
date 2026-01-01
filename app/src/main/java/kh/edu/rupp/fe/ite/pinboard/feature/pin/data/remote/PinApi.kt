@@ -48,6 +48,13 @@ interface PinApi {
     @GET("api/boards/my-boards")
     suspend fun getBoards(): ApiListResponse<Board>
 
+    @GET("api/boards")
+    suspend fun getPublicBoards(
+        @Query("is_public") isPublic: String = "true",
+        @Query("page") page: String = "1",
+        @Query("limit") limit: String = "50"
+    ): ApiListResponse<Board>
+
     @GET("api/boards/{id}")
     suspend fun getBoardById(@Path("id") id: String): Board
 

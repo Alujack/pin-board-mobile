@@ -24,6 +24,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,13 +43,15 @@ fun SearchScreen(
         viewModel.loadAllPins()
     }
 
-    // Search when query changes
+    // Search when query changes (only if no board is selected)
     LaunchedEffect(searchQuery) {
-        if (searchQuery.isNotBlank()) {
-            viewModel.searchPins(searchQuery)
-        } else {
-            // Show all pins when search is empty
-            viewModel.loadAllPins()
+        if (state.selectedBoard == null) {
+            if (searchQuery.isNotBlank()) {
+                viewModel.searchPins(searchQuery)
+            } else {
+                // Show all pins when search is empty
+                viewModel.loadAllPins()
+            }
         }
     }
 
@@ -64,8 +69,37 @@ fun SearchScreen(
                 modifier = Modifier.padding(16.dp)
             )
 
+            // Explore Boards Section
+            ExploreBoardsSection(
+                publicBoards = state.publicBoards,
+                selectedBoard = state.selectedBoard,
+                isLoadingBoards = state.isLoadingBoards,
+                showBoardExplorer = state.showBoardExplorer,
+                onToggleExplorer = { viewModel.toggleBoardExplorer() },
+                onBoardSelected = { viewModel.selectBoard(it) },
+                onClearSelection = { viewModel.clearBoardSelection() }
+            )
+
+            // Selected Board Info
+            state.selectedBoard?.let { board ->
+                SelectedBoardChip(
+                    board = board,
+                    onClear = { viewModel.clearBoardSelection() }
+                )
+            }
+
             // Search Results
             when {
+                state.isLoadingBoardPins -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFFE60023))
+                    }
+                }
                 state.isSearching -> {
                     Box(
                         modifier = Modifier
@@ -110,6 +144,41 @@ fun SearchScreen(
                                 onDownload = {
                                     pin._id?.let { viewModel.downloadPin(it) }
                                 }
+                            )
+                        }
+                    }
+                }
+
+                state.selectedBoard != null && state.searchResults.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Folder,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = Color(0xFF9E9E9E)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No pins in this board",
+                                color = Color(0xFF424242),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "This board doesn't have any pins yet",
+                                color = Color(0xFF757575),
+                                fontSize = 14.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
                     }
@@ -397,6 +466,193 @@ private fun PinItem(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExploreBoardsSection(
+    publicBoards: List<Board>,
+    selectedBoard: Board?,
+    isLoadingBoards: Boolean,
+    showBoardExplorer: Boolean,
+    onToggleExplorer: () -> Unit,
+    onBoardSelected: (Board) -> Unit,
+    onClearSelection: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Explore Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = onToggleExplorer,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = Color(0xFFE60023)
+                )
+            ) {
+                Icon(
+                    imageVector = if (showBoardExplorer) Icons.Filled.Folder else Icons.Outlined.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (showBoardExplorer) "Hide Boards" else "Explore Boards",
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        // Board List
+        if (showBoardExplorer) {
+            if (isLoadingBoards) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color(0xFFE60023),
+                        strokeWidth = 2.dp
+                    )
+                }
+            } else if (publicBoards.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(publicBoards) { board ->
+                        BoardExplorerItem(
+                            board = board,
+                            isSelected = selectedBoard?._id == board._id,
+                            onClick = { onBoardSelected(board) }
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No public boards available",
+                        color = Color(0xFF757575),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BoardExplorerItem(
+    board: Board,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(140.dp)
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) Color(0xFFE60023).copy(alpha = 0.1f) else Color(0xFFF5F5F5)
+        ),
+        border = if (isSelected)
+            androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE60023))
+        else null
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Filled.Folder,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = if (isSelected) Color(0xFFE60023) else Color(0xFF6B6B6B)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = board.name,
+                fontSize = 14.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${board.pinCount} pins",
+                fontSize = 12.sp,
+                color = Color(0xFF6B6B6B)
+            )
+        }
+    }
+}
+
+@Composable
+fun SelectedBoardChip(
+    board: Board,
+    onClear: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFFE60023).copy(alpha = 0.1f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE60023))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.Folder,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = Color(0xFFE60023)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Viewing: ${board.name}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFE60023)
+                )
+                Text(
+                    text = "${board.pinCount} pins",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B6B6B)
+                )
+            }
+            IconButton(
+                onClick = onClear,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Clear",
+                    modifier = Modifier.size(18.dp),
+                    tint = Color(0xFFE60023)
+                )
             }
         }
     }

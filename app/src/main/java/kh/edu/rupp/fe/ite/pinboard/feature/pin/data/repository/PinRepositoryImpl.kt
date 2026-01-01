@@ -42,6 +42,18 @@ constructor(
             }
                     .getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
 
+    override suspend fun getPublicBoards(page: Int, limit: Int): PinResult<List<Board>> =
+            runCatching {
+                val resp = api.getPublicBoards(
+                    isPublic = "true",
+                    page = page.toString(),
+                    limit = limit.toString()
+                )
+                val list = resp.data ?: emptyList()
+                PinResult.Success(list)
+            }
+                    .getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
+
     override suspend fun createBoard(
             name: String,
             description: String?,
