@@ -427,11 +427,16 @@ constructor(
         return try {
             val response = notificationApi.getNotifications(page, limit)
             if (response.isSuccessful && response.body() != null) {
-                PinResult.Success(response.body()!!)
+                val body = response.body()!!
+                android.util.Log.d("PinRepository", "Notifications API success: ${body.success}, data count: ${body.data.size}")
+                PinResult.Success(body)
             } else {
-                PinResult.Error("Failed to fetch notifications: ${response.code()}")
+                val errorBody = response.errorBody()?.string()
+                android.util.Log.e("PinRepository", "Notifications API failed: ${response.code()}, error: $errorBody")
+                PinResult.Error("Failed to fetch notifications: ${response.code()} - $errorBody")
             }
         } catch (e: Exception) {
+            android.util.Log.e("PinRepository", "Exception fetching notifications", e)
             PinResult.Error(e.toReadableMessage())
         }
     }

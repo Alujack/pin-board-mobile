@@ -95,6 +95,13 @@ fun NotificationsScreen(
             uiState.isLoading && uiState.notifications.isEmpty() -> {
                 LoadingView()
             }
+            uiState.errorMessage != null -> {
+                ErrorView(
+                    message = uiState.errorMessage ?: "Unknown error",
+                    onRetry = { viewModel.refresh() },
+                    onDismiss = { viewModel.clearError() }
+                )
+            }
             uiState.notifications.isEmpty() -> {
                 EmptyStateView()
             }
@@ -292,6 +299,59 @@ private fun EmptyStateView() {
                 color = Color(0xFF757575),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun ErrorView(
+    message: String,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                Icons.Default.Error,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = Color(0xFFD32F2F)
+            )
+            Text(
+                text = "Error loading notifications",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1C1C1C)
+            )
+            Text(
+                text = message,
+                fontSize = 14.sp,
+                color = Color(0xFF757575),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(onClick = onDismiss) {
+                    Text("Dismiss")
+                }
+                Button(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE60023)
+                    )
+                ) {
+                    Text("Retry")
+                }
+            }
         }
     }
 }
