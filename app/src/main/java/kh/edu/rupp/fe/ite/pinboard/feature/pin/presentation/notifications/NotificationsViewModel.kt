@@ -169,11 +169,33 @@ class NotificationsViewModel @Inject constructor(
 
     private fun formatTimestamp(timestamp: String): String {
         return try {
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
-            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-            val date = sdf.parse(timestamp)
+            // Try multiple date formats
+            val formats = listOf(
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss"
+            )
+            
+            var date: java.util.Date? = null
+            for (format in formats) {
+                try {
+                    val sdf = java.text.SimpleDateFormat(format, java.util.Locale.getDefault())
+                    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    date = sdf.parse(timestamp)
+                    if (date != null) break
+                } catch (e: Exception) {
+                    // Try next format
+                }
+            }
+            
+            if (date == null) {
+                Log.w("NotificationsViewModel", "Could not parse timestamp: $timestamp")
+                return "Recently"
+            }
+            
             val now = java.util.Date()
-            val diff = now.time - (date?.time ?: 0)
+            val diff = now.time - date.time
 
             when {
                 diff < 60000 -> "Just now"
@@ -183,6 +205,7 @@ class NotificationsViewModel @Inject constructor(
                 else -> "${diff / 604800000}w ago"
             }
         } catch (e: Exception) {
+            Log.e("NotificationsViewModel", "Error formatting timestamp: $timestamp", e)
             "Recently"
         }
     }

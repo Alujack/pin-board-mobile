@@ -31,6 +31,11 @@ fun NotificationsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Refresh notifications when screen is focused
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -68,23 +73,41 @@ fun NotificationsScreen(
                         }
                     }
                     
-                    if (uiState.notifications.any { !it.isRead }) {
-                        TextButton(
-                            onClick = { viewModel.markAllAsRead() },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = Color(0xFFE60023)
-                            )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Refresh button
+                        IconButton(
+                            onClick = { viewModel.refresh() },
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                Icons.Default.DoneAll,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                Icons.Default.Refresh,
+                                contentDescription = "Refresh",
+                                tint = Color(0xFFE60023)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Mark all read",
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        }
+                        
+                        // Mark all read button
+                        if (uiState.notifications.any { !it.isRead }) {
+                            TextButton(
+                                onClick = { viewModel.markAllAsRead() },
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = Color(0xFFE60023)
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.DoneAll,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Mark all read",
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
                     }
                 }

@@ -443,13 +443,16 @@ constructor(
 
     override suspend fun markNotificationAsRead(notificationId: String): PinResult<Unit> {
         return try {
-            val response = notificationApi.markAsRead(mapOf("notificationId" to notificationId))
+            val response = notificationApi.markAsRead(mapOf("notification_id" to notificationId))
             if (response.isSuccessful) {
                 PinResult.Success(Unit)
             } else {
+                val errorBody = response.errorBody()?.string()
+                android.util.Log.e("PinRepository", "Mark as read failed: ${response.code()}, error: $errorBody")
                 PinResult.Error("Failed to mark notification as read: ${response.code()}")
             }
         } catch (e: Exception) {
+            android.util.Log.e("PinRepository", "Exception marking notification as read", e)
             PinResult.Error(e.toReadableMessage())
         }
     }
