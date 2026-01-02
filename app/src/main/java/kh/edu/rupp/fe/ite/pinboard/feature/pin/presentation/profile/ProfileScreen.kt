@@ -244,18 +244,18 @@ private fun ProfileHeader(
             StatItem(followingCount, "Following")
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onEditProfile,
-            shape = RoundedCornerShape(24.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE60023)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 48.dp)
-                .height(44.dp)
-        ) {
-            Text("Edit Profile", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-        }
+//        Spacer(modifier = Modifier.height(16.dp))
+//        Button(
+//            onClick = onEditProfile,
+//            shape = RoundedCornerShape(24.dp),
+//            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE60023)),
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(horizontal = 48.dp)
+//                .height(44.dp)
+//        ) {
+//            Text("Edit Profile", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+//        }
     }
 }
 

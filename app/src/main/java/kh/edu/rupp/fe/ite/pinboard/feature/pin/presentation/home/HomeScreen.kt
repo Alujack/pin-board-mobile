@@ -15,6 +15,8 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,16 +56,11 @@ fun HomeScreen(
                 )
             }
             else -> {
-                // Pin grid with swipe refresh
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Refresh button
-                    if (uiState.isRefreshing) {
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color(0xFFE60023)
-                        )
-                    }
-                    
+                // Pin grid with swipe-to-refresh
+                SwipeRefresh(
+                    state = rememberSwipeRefreshState(isRefreshing = uiState.isRefreshing),
+                    onRefresh = { viewModel.refreshPins() }
+                ) {
                     LazyVerticalStaggeredGrid(
                         columns = StaggeredGridCells.Fixed(2),
                         modifier = Modifier.fillMaxSize(),
@@ -278,7 +275,7 @@ private fun ErrorSnackbar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.Error,
+                Icons.Filled.Error,
                 contentDescription = null,
                 tint = Color(0xFFD32F2F)
             )
@@ -291,7 +288,7 @@ private fun ErrorSnackbar(
             )
             IconButton(onClick = onDismiss) {
                 Icon(
-                    Icons.Default.Close,
+                    Icons.Filled.Close,
                     contentDescription = "Dismiss",
                     tint = Color(0xFFD32F2F)
                 )

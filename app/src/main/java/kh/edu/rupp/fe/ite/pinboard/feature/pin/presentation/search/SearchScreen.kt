@@ -69,24 +69,14 @@ fun SearchScreen(
                 modifier = Modifier.padding(16.dp)
             )
 
-            // Explore Boards Section
-            ExploreBoardsSection(
+            // Explore Boards Section - Horizontal Scrollable Chips
+            BoardChipsSection(
                 publicBoards = state.publicBoards,
                 selectedBoard = state.selectedBoard,
                 isLoadingBoards = state.isLoadingBoards,
-                showBoardExplorer = state.showBoardExplorer,
-                onToggleExplorer = { viewModel.toggleBoardExplorer() },
                 onBoardSelected = { viewModel.selectBoard(it) },
                 onClearSelection = { viewModel.clearBoardSelection() }
             )
-
-            // Selected Board Info
-            state.selectedBoard?.let { board ->
-                SelectedBoardChip(
-                    board = board,
-                    onClear = { viewModel.clearBoardSelection() }
-                )
-            }
 
             // Search Results
             when {
@@ -472,135 +462,93 @@ private fun PinItem(
 }
 
 @Composable
-fun ExploreBoardsSection(
+fun BoardChipsSection(
     publicBoards: List<Board>,
     selectedBoard: Board?,
     isLoadingBoards: Boolean,
-    showBoardExplorer: Boolean,
-    onToggleExplorer: () -> Unit,
     onBoardSelected: (Board) -> Unit,
     onClearSelection: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        // Explore Button
-        Row(
+    if (isLoadingBoards) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(56.dp)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            contentAlignment = Alignment.Center
         ) {
-            TextButton(
-                onClick = onToggleExplorer,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = Color(0xFFE60023)
-                )
-            ) {
-                Icon(
-                    imageVector = if (showBoardExplorer) Icons.Filled.Folder else Icons.Outlined.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (showBoardExplorer) "Hide Boards" else "Explore Boards",
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = Color(0xFFE60023),
+                strokeWidth = 2.dp
+            )
         }
-
-        // Board List
-        if (showBoardExplorer) {
-            if (isLoadingBoards) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color(0xFFE60023),
-                        strokeWidth = 2.dp
+    } else if (publicBoards.isNotEmpty()) {
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Clear selection chip (if a board is selected)
+            if (selectedBoard != null) {
+                item {
+                    BoardChip(
+                        text = "All Boards",
+                        isSelected = false,
+                        onClick = onClearSelection,
+                        showIcon = false
                     )
                 }
-            } else if (publicBoards.isNotEmpty()) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(publicBoards) { board ->
-                        BoardExplorerItem(
-                            board = board,
-                            isSelected = selectedBoard?._id == board._id,
-                            onClick = { onBoardSelected(board) }
-                        )
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No public boards available",
-                        color = Color(0xFF757575),
-                        fontSize = 14.sp
-                    )
-                }
+            }
+            
+            // Board chips
+            items(publicBoards) { board ->
+                BoardChip(
+                    text = board.name,
+                    isSelected = selectedBoard?._id == board._id,
+                    onClick = { onBoardSelected(board) },
+                    showIcon = true
+                )
             }
         }
     }
 }
 
 @Composable
-fun BoardExplorerItem(
-    board: Board,
+fun BoardChip(
+    text: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    showIcon: Boolean = true
 ) {
-    Card(
-        modifier = Modifier
-            .width(140.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFE60023).copy(alpha = 0.1f) else Color(0xFFF5F5F5)
-        ),
-        border = if (isSelected)
-            androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFE60023))
+    Surface(
+        modifier = Modifier.clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        color = if (isSelected) Color(0xFFE60023) else Color(0xFFF5F5F5),
+        border = if (!isSelected) 
+            androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
         else null
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                Icons.Filled.Folder,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = if (isSelected) Color(0xFFE60023) else Color(0xFF6B6B6B)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            if (showIcon) {
+                Icon(
+                    imageVector = Icons.Filled.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (isSelected) Color.White else Color(0xFF6B6B6B)
+                )
+            }
             Text(
-                text = board.name,
+                text = text,
                 fontSize = 14.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) Color(0xFFE60023) else Color(0xFF1C1C1C),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "${board.pinCount} pins",
-                fontSize = 12.sp,
-                color = Color(0xFF6B6B6B)
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (isSelected) Color.White else Color(0xFF1C1C1C),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

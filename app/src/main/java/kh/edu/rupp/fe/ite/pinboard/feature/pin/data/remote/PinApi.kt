@@ -23,7 +23,7 @@ interface PinApi {
         @Query("q") query: String
     ): PinResponse
 
-    @GET("api/pins")
+    @GET("api/pins/all-pins")
     suspend fun getAllPins(): PinResponse
 
     @GET("api/pins/detail/{id}")
