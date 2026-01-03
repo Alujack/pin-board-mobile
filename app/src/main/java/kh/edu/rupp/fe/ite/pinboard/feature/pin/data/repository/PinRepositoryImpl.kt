@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import com.google.gson.JsonSyntaxException
 import java.io.File
 import java.io.IOException
@@ -472,13 +473,20 @@ constructor(
 
     override suspend fun registerFCMToken(token: String): PinResult<Unit> {
         return try {
+            Log.d("PinRepository", "📤 Registering FCM token: ${token.take(20)}...")
             val response = notificationApi.registerFCMToken(mapOf("fcm_token" to token))
             if (response.isSuccessful) {
+                val body = response.body()
+                Log.d("PinRepository", "✅ FCM token registered successfully: ${body?.data}")
                 PinResult.Success(Unit)
             } else {
-                PinResult.Error("Failed to register FCM token: ${response.code()}")
+                val errorBody = response.errorBody()?.string()
+                Log.e("PinRepository", "❌ Failed to register FCM token: ${response.code()} - $errorBody")
+                PinResult.Error("Failed to register FCM token: ${response.code()} - $errorBody")
             }
         } catch (e: Exception) {
+            Log.e("PinRepository", "❌ Exception registering FCM token", e)
+            e.printStackTrace()
             PinResult.Error(e.toReadableMessage())
         }
     }
