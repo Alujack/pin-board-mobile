@@ -15,9 +15,12 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +31,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
+import kotlin.math.abs
+
+// Helper function to get varying aspect ratios for Pinterest-style staggered grid
+private fun getPinAspectRatio(pin: Pin): Float {
+    // Use pin ID hash to create variety in aspect ratios
+    val hash = abs((pin._id ?: pin.id ?: "").hashCode())
+    // Aspect ratios between 0.6 (tall) and 1.4 (wide) for variety
+    return 0.6f + (hash % 80) / 100f // Range: 0.6 to 1.4
+}
 
 @Composable
 fun HomeScreen(
@@ -40,7 +52,7 @@ fun HomeScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(Color.White)
     ) {
         when {
             uiState.isLoading && uiState.pins.isEmpty() -> {
@@ -54,22 +66,17 @@ fun HomeScreen(
                 )
             }
             else -> {
-                // Pin grid with swipe refresh
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Refresh button
-                    if (uiState.isRefreshing) {
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color(0xFFE60023)
-                        )
-                    }
-                    
+                // Pin grid with swipe-to-refresh
+                SwipeRefresh(
+                    state = rememberSwipeRefreshState(isRefreshing = uiState.isRefreshing),
+                    onRefresh = { viewModel.refreshPins() }
+                ) {
                     LazyVerticalStaggeredGrid(
                         columns = StaggeredGridCells.Fixed(2),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalItemSpacing = 8.dp
+                        verticalItemSpacing = 16.dp
                     ) {
                         items(uiState.pins) { pin ->
                             PinCard(
@@ -104,100 +111,101 @@ private fun PinCard(
     onClick: () -> Unit,
     onToggleSave: () -> Unit
 ) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(20.dp))
     ) {
-        Box {
-            Column {
-                // Pin Image
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                ) {
-                    AsyncImage(
-                        model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
-                        contentDescription = pin.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
+        // Pin Image - Dynamic height based on aspect ratio
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(getPinAspectRatio(pin))
+                .clip(RoundedCornerShape(20.dp))
+        ) {
+            AsyncImage(
+                model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
+                contentDescription = pin.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
 
-                    // Save button overlay
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(36.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        color = Color.White.copy(alpha = 0.95f),
-                        shadowElevation = 2.dp
-                    ) {
-                        IconButton(
-                            onClick = onToggleSave,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Icon(
-                                imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (isSaved) "Unsave" else "Save",
-                                tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
-                                modifier = Modifier.size(18.dp)
+            // Gradient overlay at bottom for text readability
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.4f)
                             )
-                        }
-                    }
+                        )
+                    )
+            )
+
+            // Save button overlay - top right
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .size(40.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White.copy(alpha = 0.9f),
+                shadowElevation = 4.dp
+            ) {
+                IconButton(
+                    onClick = onToggleSave,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = if (isSaved) "Unsave" else "Save",
+                        tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
+            }
 
-                // Pin Info
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = pin.title,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1C1C1C),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            // Pin Info Overlay - bottom
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = pin.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-                    pin.description?.let { desc ->
-                        if (desc.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = desc,
-                                fontSize = 12.sp,
-                                color = Color(0xFF757575),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    pin.user?.let { user ->
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(
-                                Icons.Outlined.Person,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = Color(0xFF9E9E9E)
-                            )
-                            Text(
-                                text = user.username,
-                                fontSize = 12.sp,
-                                color = Color(0xFF9E9E9E),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                pin.user?.let { user ->
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White.copy(alpha = 0.9f)
+                        )
+                        Text(
+                            text = user.username,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.9f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
@@ -278,7 +286,7 @@ private fun ErrorSnackbar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.Error,
+                Icons.Filled.Error,
                 contentDescription = null,
                 tint = Color(0xFFD32F2F)
             )
@@ -291,7 +299,7 @@ private fun ErrorSnackbar(
             )
             IconButton(onClick = onDismiss) {
                 Icon(
-                    Icons.Default.Close,
+                    Icons.Filled.Close,
                     contentDescription = "Dismiss",
                     tint = Color(0xFFD32F2F)
                 )

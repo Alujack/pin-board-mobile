@@ -1,5 +1,6 @@
 package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.notifications
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,41 +56,58 @@ class NotificationsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            when (val result = getNotificationsUseCase()) {
-                is PinResult.Success -> {
-                    val notifications = result.data.data.map { item ->
-                        Notification(
-                            id = item._id,
-                            type = mapNotificationType(item.type),
-                            message = item.content,
-                            timestamp = formatTimestamp(item.created_at),
-                            isRead = item.is_read,
-                            fromUser = item.from_user?.username,
-                            metadata = item.metadata?.let { meta ->
-                                mapOf(
-                                    "pin_id" to (meta.pin_id ?: ""),
-                                    "board_id" to (meta.board_id ?: ""),
-                                    "user_id" to (meta.user_id ?: ""),
-                                    "comment_id" to (meta.comment_id ?: "")
-                                ).filterValues { it.isNotEmpty() }
-                            }
-                        )
+            try {
+                Log.d("NotificationsViewModel", "Loading notifications...")
+                when (val result = getNotificationsUseCase()) {
+                    is PinResult.Success -> {
+                        Log.d("NotificationsViewModel", "Notifications loaded successfully. Count: ${result.data.data.size}")
+                        Log.d("NotificationsViewModel", "Response success: ${result.data.success}, message: ${result.data.message}")
+                        
+                        val notifications = result.data.data.map { item ->
+                            Log.d("NotificationsViewModel", "Processing notification: ${item._id}, type: ${item.type}, content: ${item.content}")
+                            Notification(
+                                id = item._id,
+                                type = mapNotificationType(item.type),
+                                message = item.content,
+                                timestamp = formatTimestamp(item.created_at),
+                                isRead = item.is_read,
+                                fromUser = item.from_user?.username,
+                                metadata = item.metadata?.let { meta ->
+                                    mapOf(
+                                        "pin_id" to (meta.pin_id ?: ""),
+                                        "board_id" to (meta.board_id ?: ""),
+                                        "user_id" to (meta.user_id ?: ""),
+                                        "comment_id" to (meta.comment_id ?: "")
+                                    ).filterValues { it.isNotEmpty() }
+                                }
+                            )
+                        }
+                        Log.d("NotificationsViewModel", "Mapped ${notifications.size} notifications")
+                        _uiState.update {
+                            it.copy(
+                                notifications = notifications,
+                                isLoading = false,
+                                errorMessage = null
+                            )
+                        }
                     }
-                    _uiState.update {
-                        it.copy(
-                            notifications = notifications,
-                            isLoading = false,
-                            errorMessage = null
-                        )
+                    is PinResult.Error -> {
+                        Log.e("NotificationsViewModel", "Error loading notifications: ${result.message}")
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = result.message
+                            )
+                        }
                     }
                 }
-                is PinResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = result.message
-                        )
-                    }
+            } catch (e: Exception) {
+                Log.e("NotificationsViewModel", "Exception loading notifications", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Failed to load notifications: ${e.message}"
+                    )
                 }
             }
         }
@@ -151,11 +169,33 @@ class NotificationsViewModel @Inject constructor(
 
     private fun formatTimestamp(timestamp: String): String {
         return try {
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.getDefault())
-            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-            val date = sdf.parse(timestamp)
+            // Try multiple date formats
+            val formats = listOf(
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss"
+            )
+            
+            var date: java.util.Date? = null
+            for (format in formats) {
+                try {
+                    val sdf = java.text.SimpleDateFormat(format, java.util.Locale.getDefault())
+                    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                    date = sdf.parse(timestamp)
+                    if (date != null) break
+                } catch (e: Exception) {
+                    // Try next format
+                }
+            }
+            
+            if (date == null) {
+                Log.w("NotificationsViewModel", "Could not parse timestamp: $timestamp")
+                return "Recently"
+            }
+            
             val now = java.util.Date()
-            val diff = now.time - (date?.time ?: 0)
+            val diff = now.time - date.time
 
             when {
                 diff < 60000 -> "Just now"
@@ -165,6 +205,7 @@ class NotificationsViewModel @Inject constructor(
                 else -> "${diff / 604800000}w ago"
             }
         } catch (e: Exception) {
+            Log.e("NotificationsViewModel", "Error formatting timestamp: $timestamp", e)
             "Recently"
         }
     }

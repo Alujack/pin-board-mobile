@@ -7,6 +7,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinResult
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.CreatePinUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetBoardsUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.CreateBoardUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,10 @@ data class CreatePinState(
     val boards: List<Board> = emptyList(),
     val isLoading: Boolean = false,
     val isCreating: Boolean = false,
+    val isCreatingBoard: Boolean = false,
+    val showCreateBoardDialog: Boolean = false,
+    val newBoardName: String = "",
+    val newBoardDescription: String = "",
     val errorMessage: String? = null,
     val isPinCreated: Boolean = false,
     val step: CreatePinStep = CreatePinStep.MEDIA
@@ -33,7 +38,8 @@ enum class CreatePinStep { MEDIA, DETAILS, BOARD }
 @HiltViewModel
 class CreatePinViewModel @Inject constructor(
     private val createPinUseCase: CreatePinUseCase,
-    private val getBoardsUseCase: GetBoardsUseCase
+    private val getBoardsUseCase: GetBoardsUseCase,
+    private val createBoardUseCase: CreateBoardUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CreatePinState())
@@ -163,5 +169,71 @@ class CreatePinViewModel @Inject constructor(
     fun resetState() {
         _state.value = CreatePinState()
         loadBoards()
+    }
+
+    fun showCreateBoardDialog() {
+        _state.value = _state.value.copy(
+            showCreateBoardDialog = true,
+            newBoardName = "",
+            newBoardDescription = "",
+            errorMessage = null
+        )
+    }
+
+    fun hideCreateBoardDialog() {
+        _state.value = _state.value.copy(
+            showCreateBoardDialog = false,
+            newBoardName = "",
+            newBoardDescription = "",
+            errorMessage = null
+        )
+    }
+
+    fun onNewBoardNameChange(name: String) {
+        _state.value = _state.value.copy(newBoardName = name, errorMessage = null)
+    }
+
+    fun onNewBoardDescriptionChange(description: String) {
+        _state.value = _state.value.copy(newBoardDescription = description, errorMessage = null)
+    }
+
+    fun createBoard() {
+        val currentState = _state.value
+        val name = currentState.newBoardName.trim()
+
+        if (name.isBlank()) {
+            _state.value = currentState.copy(errorMessage = "Board name is required")
+            return
+        }
+
+        viewModelScope.launch {
+            _state.value = currentState.copy(isCreatingBoard = true, errorMessage = null)
+
+            when (val result = createBoardUseCase(
+                name = name,
+                description = currentState.newBoardDescription.takeIf { it.isNotBlank() },
+                isPublic = true
+            )) {
+                is PinResult.Success -> {
+                    val newBoard = result.data
+                    val updatedBoards = listOf(newBoard) + currentState.boards
+                    _state.value = currentState.copy(
+                        isCreatingBoard = false,
+                        boards = updatedBoards,
+                        selectedBoard = newBoard,
+                        showCreateBoardDialog = false,
+                        newBoardName = "",
+                        newBoardDescription = "",
+                        errorMessage = null
+                    )
+                }
+                is PinResult.Error -> {
+                    _state.value = currentState.copy(
+                        isCreatingBoard = false,
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
     }
 }

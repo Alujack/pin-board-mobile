@@ -36,6 +36,8 @@ class MainActivity : ComponentActivity() {
             val token = tokenManager.getToken()
             if (!token.isNullOrEmpty()) {
                 // User is already logged in, register FCM token
+                // Use a small delay to ensure auth context is ready
+                kotlinx.coroutines.delay(500)
                 fcmTokenManager.initializeFCM()
             }
         }

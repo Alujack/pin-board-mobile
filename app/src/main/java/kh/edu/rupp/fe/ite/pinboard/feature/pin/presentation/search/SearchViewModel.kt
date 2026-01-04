@@ -10,7 +10,10 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SearchPinsUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.SavePinUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.UnsavePinUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.DownloadPinUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetPublicBoardsUseCase
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.usecase.GetPinsByBoardUseCase
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.domain.repository.PinRepository
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,12 +23,17 @@ import javax.inject.Inject
 data class SearchState(
     val searchResults: List<Pin> = emptyList(),
     val allPins: List<Pin> = emptyList(), // Store all pins
+    val publicBoards: List<Board> = emptyList(),
+    val selectedBoard: Board? = null,
     val savedPinIds: Set<String> = emptySet(),
     val isSearching: Boolean = false,
+    val isLoadingBoards: Boolean = false,
+    val isLoadingBoardPins: Boolean = false,
     val isSaving: Boolean = false,
     val isDownloading: Boolean = false,
     val errorMessage: String? = null,
-    val currentSearchQuery: String = ""
+    val currentSearchQuery: String = "",
+    val showBoardExplorer: Boolean = false
 )
 
 @HiltViewModel
@@ -35,6 +43,8 @@ class SearchViewModel @Inject constructor(
     private val savePinUseCase: SavePinUseCase,
     private val unsavePinUseCase: UnsavePinUseCase,
     private val downloadPinUseCase: DownloadPinUseCase,
+    private val getPublicBoardsUseCase: GetPublicBoardsUseCase,
+    private val getPinsByBoardUseCase: GetPinsByBoardUseCase,
     private val pinRepository: PinRepository // For saved media
 ) : ViewModel() {
 
@@ -44,6 +54,8 @@ class SearchViewModel @Inject constructor(
     init {
         // Load saved pins on initialization
         loadSavedPins()
+        // Load public boards
+        loadPublicBoards()
     }
 
     private fun loadSavedPins() {
@@ -194,5 +206,74 @@ class SearchViewModel @Inject constructor(
 
     fun clearError() {
         _state.value = _state.value.copy(errorMessage = null)
+    }
+
+    // Load public boards for exploration
+    fun loadPublicBoards() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoadingBoards = true, errorMessage = null)
+
+            when (val result = getPublicBoardsUseCase(page = 1, limit = 50)) {
+                is PinResult.Success -> {
+                    _state.value = _state.value.copy(
+                        isLoadingBoards = false,
+                        publicBoards = result.data,
+                        errorMessage = null
+                    )
+                }
+                is PinResult.Error -> {
+                    _state.value = _state.value.copy(
+                        isLoadingBoards = false,
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    // Select a board and load its pins
+    fun selectBoard(board: Board) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                selectedBoard = board,
+                isLoadingBoardPins = true,
+                errorMessage = null,
+                showBoardExplorer = false
+            )
+
+            when (val result = getPinsByBoardUseCase(board._id)) {
+                is PinResult.Success -> {
+                    _state.value = _state.value.copy(
+                        isLoadingBoardPins = false,
+                        searchResults = result.data,
+                        currentSearchQuery = "",
+                        errorMessage = null
+                    )
+                    loadSavedPins()
+                }
+                is PinResult.Error -> {
+                    _state.value = _state.value.copy(
+                        isLoadingBoardPins = false,
+                        errorMessage = result.message
+                    )
+                }
+            }
+        }
+    }
+
+    // Clear board selection and show all pins
+    fun clearBoardSelection() {
+        _state.value = _state.value.copy(
+            selectedBoard = null,
+            currentSearchQuery = ""
+        )
+        loadAllPins()
+    }
+
+    // Toggle board explorer visibility
+    fun toggleBoardExplorer() {
+        _state.value = _state.value.copy(
+            showBoardExplorer = !_state.value.showBoardExplorer
+        )
     }
 }

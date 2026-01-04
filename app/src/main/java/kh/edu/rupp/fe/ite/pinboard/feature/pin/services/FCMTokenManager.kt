@@ -24,27 +24,32 @@ class FCMTokenManager @Inject constructor(
     fun initializeFCM() {
         scope.launch {
             try {
+                Log.d("FCMTokenManager", "=== Starting FCM Token Registration ===")
+                
                 // Get FCM token
                 val token = FirebaseMessaging.getInstance().token.await()
-                Log.d("FCMTokenManager", "FCM Token: $token")
+                Log.d("FCMTokenManager", "✅ FCM Token obtained: ${token.take(20)}...")
 
-                // Check if token has changed
-                val savedToken = prefs.getString("fcm_token", null)
-                if (token != savedToken) {
-                    // Register token with backend
-                    when (val result = repository.registerFCMToken(token)) {
-                        is PinResult.Success -> {
-                            // Save token locally
-                            prefs.edit().putString("fcm_token", token).apply()
-                            Log.d("FCMTokenManager", "FCM token registered successfully")
-                        }
-                        is PinResult.Error -> {
-                            Log.e("FCMTokenManager", "Failed to register FCM token: ${result.message}")
-                        }
+                // Always register token with backend on login/initialization
+                // This ensures token is registered even if it hasn't changed
+                Log.d("FCMTokenManager", "📤 Registering FCM token with backend...")
+                when (val result = repository.registerFCMToken(token)) {
+                    is PinResult.Success -> {
+                        // Save token locally
+                        prefs.edit().putString("fcm_token", token).apply()
+                        Log.d("FCMTokenManager", "✅ FCM token registered successfully with backend")
+                    }
+                    is PinResult.Error -> {
+                        Log.e("FCMTokenManager", "❌ Failed to register FCM token: ${result.message}")
+                        // Still save token locally for retry later
+                        prefs.edit().putString("fcm_token", token).apply()
                     }
                 }
+                
+                Log.d("FCMTokenManager", "=== FCM Token Registration Complete ===")
             } catch (e: Exception) {
-                Log.e("FCMTokenManager", "Failed to get FCM token", e)
+                Log.e("FCMTokenManager", "❌ Failed to get FCM token", e)
+                e.printStackTrace()
             }
         }
     }
@@ -56,6 +61,32 @@ class FCMTokenManager @Inject constructor(
                 initializeFCM()
             } catch (e: Exception) {
                 Log.e("FCMTokenManager", "Failed to refresh FCM token", e)
+            }
+        }
+    }
+
+    /**
+     * Force register FCM token (useful for retry or manual registration)
+     */
+    fun forceRegisterFCMToken() {
+        scope.launch {
+            try {
+                Log.d("FCMTokenManager", "🔄 Force registering FCM token...")
+                val token = FirebaseMessaging.getInstance().token.await()
+                Log.d("FCMTokenManager", "✅ FCM Token obtained: ${token.take(20)}...")
+                
+                when (val result = repository.registerFCMToken(token)) {
+                    is PinResult.Success -> {
+                        prefs.edit().putString("fcm_token", token).apply()
+                        Log.d("FCMTokenManager", "✅ FCM token force registered successfully")
+                    }
+                    is PinResult.Error -> {
+                        Log.e("FCMTokenManager", "❌ Failed to force register FCM token: ${result.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("FCMTokenManager", "❌ Failed to force register FCM token", e)
+                e.printStackTrace()
             }
         }
     }

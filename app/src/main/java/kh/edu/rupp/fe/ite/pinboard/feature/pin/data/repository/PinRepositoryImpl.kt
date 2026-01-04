@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import com.google.gson.JsonSyntaxException
 import java.io.File
 import java.io.IOException
@@ -39,6 +40,34 @@ constructor(
                 val resp = api.getBoards()
                 val list = resp.data ?: emptyList()
                 PinResult.Success(list)
+            }
+                    .getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
+
+    override suspend fun getPublicBoards(page: Int, limit: Int): PinResult<List<Board>> =
+            runCatching {
+                val resp = api.getPublicBoards(
+                    isPublic = "true",
+                    page = page.toString(),
+                    limit = limit.toString()
+                )
+                val list = resp.data ?: emptyList()
+                PinResult.Success(list)
+            }
+                    .getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
+
+    override suspend fun createBoard(
+            name: String,
+            description: String?,
+            isPublic: Boolean
+    ): PinResult<Board> =
+            runCatching {
+                val request = kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote.CreateBoardRequest(
+                    name = name,
+                    description = description,
+                    is_public = isPublic
+                )
+                val resp = api.createBoard(request)
+                PinResult.Success(resp.data)
             }
                     .getOrElse { e -> PinResult.Error(e.toReadableMessage()) }
 
@@ -271,6 +300,24 @@ constructor(
         }
     }
 
+    override suspend fun getReplies(
+            pinId: String,
+            parentCommentId: String,
+            page: Int,
+            limit: Int
+    ): PinResult<CommentResponse> {
+        return try {
+            val response = commentApi.getReplies(pinId, parentCommentId, page, limit)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to fetch replies: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
     override suspend fun createComment(
             pinId: String,
             content: String,
@@ -399,24 +446,32 @@ constructor(
         return try {
             val response = notificationApi.getNotifications(page, limit)
             if (response.isSuccessful && response.body() != null) {
-                PinResult.Success(response.body()!!)
+                val body = response.body()!!
+                android.util.Log.d("PinRepository", "Notifications API success: ${body.success}, data count: ${body.data.size}")
+                PinResult.Success(body)
             } else {
-                PinResult.Error("Failed to fetch notifications: ${response.code()}")
+                val errorBody = response.errorBody()?.string()
+                android.util.Log.e("PinRepository", "Notifications API failed: ${response.code()}, error: $errorBody")
+                PinResult.Error("Failed to fetch notifications: ${response.code()} - $errorBody")
             }
         } catch (e: Exception) {
+            android.util.Log.e("PinRepository", "Exception fetching notifications", e)
             PinResult.Error(e.toReadableMessage())
         }
     }
 
     override suspend fun markNotificationAsRead(notificationId: String): PinResult<Unit> {
         return try {
-            val response = notificationApi.markAsRead(mapOf("notificationId" to notificationId))
+            val response = notificationApi.markAsRead(mapOf("notification_id" to notificationId))
             if (response.isSuccessful) {
                 PinResult.Success(Unit)
             } else {
+                val errorBody = response.errorBody()?.string()
+                android.util.Log.e("PinRepository", "Mark as read failed: ${response.code()}, error: $errorBody")
                 PinResult.Error("Failed to mark notification as read: ${response.code()}")
             }
         } catch (e: Exception) {
+            android.util.Log.e("PinRepository", "Exception marking notification as read", e)
             PinResult.Error(e.toReadableMessage())
         }
     }
@@ -436,13 +491,20 @@ constructor(
 
     override suspend fun registerFCMToken(token: String): PinResult<Unit> {
         return try {
+            Log.d("PinRepository", "📤 Registering FCM token: ${token.take(20)}...")
             val response = notificationApi.registerFCMToken(mapOf("fcm_token" to token))
             if (response.isSuccessful) {
+                val body = response.body()
+                Log.d("PinRepository", "✅ FCM token registered successfully: ${body?.data}")
                 PinResult.Success(Unit)
             } else {
-                PinResult.Error("Failed to register FCM token: ${response.code()}")
+                val errorBody = response.errorBody()?.string()
+                Log.e("PinRepository", "❌ Failed to register FCM token: ${response.code()} - $errorBody")
+                PinResult.Error("Failed to register FCM token: ${response.code()} - $errorBody")
             }
         } catch (e: Exception) {
+            Log.e("PinRepository", "❌ Exception registering FCM token", e)
+            e.printStackTrace()
             PinResult.Error(e.toReadableMessage())
         }
     }

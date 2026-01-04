@@ -11,6 +11,12 @@ sealed class PinResult<out T> {
 
 interface PinRepository {
     suspend fun getBoards(): PinResult<List<Board>>
+    suspend fun getPublicBoards(page: Int = 1, limit: Int = 50): PinResult<List<Board>>
+    suspend fun createBoard(
+        name: String,
+        description: String?,
+        isPublic: Boolean
+    ): PinResult<Board>
     suspend fun createPin(
         title: String,
         board: String,
@@ -37,6 +43,7 @@ interface PinRepository {
     
     // Comments
     suspend fun getComments(pinId: String, page: Int = 1, limit: Int = 20): PinResult<CommentResponse>
+    suspend fun getReplies(pinId: String, parentCommentId: String, page: Int = 1, limit: Int = 20): PinResult<CommentResponse>
     suspend fun createComment(pinId: String, content: String, parentCommentId: String? = null): PinResult<Comment>
     suspend fun deleteComment(commentId: String): PinResult<Unit>
     suspend fun toggleCommentLike(commentId: String): PinResult<ToggleLikeResponse>

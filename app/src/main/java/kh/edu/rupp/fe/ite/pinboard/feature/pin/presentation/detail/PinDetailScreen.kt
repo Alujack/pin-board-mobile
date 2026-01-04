@@ -3,6 +3,7 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.detail
 import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -30,120 +32,126 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Comment
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PinDetailScreen(
-        onNavigateBack: () -> Unit,
-        onNavigateToComments: (String) -> Unit = {},
-        onNavigateToPin: (String) -> Unit = {},
-        viewModel: PinDetailViewModel = hiltViewModel()
+    onNavigateBack: () -> Unit,
+    onNavigateToComments: (String) -> Unit = {},
+    onNavigateToPin: (String) -> Unit = {},
+    viewModel: PinDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var showCommentDialog by remember { mutableStateOf(false) }
+    var showCommentsSheet by remember { mutableStateOf(false) }
+    var commentText by remember { mutableStateOf("") }
 
-    Scaffold(
-            topBar = {
-                TopAppBar(
-                        title = { Text("Pin Details", fontWeight = FontWeight.SemiBold) },
-                        navigationIcon = {
-                            IconButton(onClick = onNavigateBack) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                            }
-                        },
-                        colors =
-                                TopAppBarDefaults.topAppBarColors(
-                                        containerColor = Color.White,
-                                        titleContentColor = Color(0xFF1C1C1C)
-                                )
+    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+        when {
+            uiState.isLoading -> {
+                LoadingView()
+            }
+            uiState.pin != null -> {
+                PinDetailContent(
+                    pin = uiState.pin!!,
+                    isSaved = uiState.isSaved,
+                    isLiked = uiState.isLiked,
+                    likesCount = uiState.likesCount,
+                    commentsCount = uiState.commentsCount,
+                    comments = uiState.comments,
+                    isFollowing = uiState.isFollowing,
+                    isFollowLoading = uiState.isFollowLoading,
+                    isCheckingFollow = uiState.isCheckingFollow,
+                    isDownloading = uiState.isDownloading,
+                    relatedPins = uiState.relatedPins,
+                    showFollowButton = uiState.showFollowButton,
+                    onNavigateBack = onNavigateBack,
+                    onToggleSave = { viewModel.toggleSavePin() },
+                    onToggleLike = { viewModel.toggleLike() },
+                    onShare = { viewModel.onShareClicked() },
+                    onDownload = { viewModel.onDownloadClicked() },
+                    onFollow = { viewModel.onFollowClicked() },
+                    onCommentClick = { showCommentsSheet = true },
+                    onRelatedPinClick = onNavigateToPin
                 )
             }
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            when {
-                uiState.isLoading -> {
-                    LoadingView()
-                }
-                uiState.pin != null -> {
-                    PinDetailContent(
-                            pin = uiState.pin!!,
-                            isSaved = uiState.isSaved,
-                            isLiked = uiState.isLiked,
-                            likesCount = uiState.likesCount,
-                            commentsCount = uiState.commentsCount,
-                            comments = uiState.comments,
-                            isFollowing = uiState.isFollowing,
-                            isFollowLoading = uiState.isFollowLoading,
-                            isDownloading = uiState.isDownloading,
-                            relatedPins = uiState.relatedPins,
-                            showFollowButton = uiState.showFollowButton,
-                            onToggleSave = { viewModel.toggleSavePin() },
-                            onToggleLike = { viewModel.toggleLike() },
-                            onShare = { viewModel.onShareClicked() },
-                            onDownload = { viewModel.onDownloadClicked() },
-                            onFollow = { viewModel.onFollowClicked() },
-                            onCommentClick = { showCommentDialog = true },
-                            onRelatedPinClick = onNavigateToPin
-                    )
-                }
-                uiState.errorMessage != null -> {
-                    ErrorView(message = uiState.errorMessage!!, onRetry = { viewModel.retry() })
-                }
-            }
-
-            // Success/Error Snackbar
-            uiState.errorMessage?.let { error ->
-                if (uiState.pin != null && error.contains("successfully")) {
-                    SuccessSnackbar(
-                            message = error,
-                            onDismiss = { viewModel.clearError() },
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
-                    )
-                } else if (uiState.pin != null) {
-                    ErrorSnackbar(
-                            message = error,
-                            onDismiss = { viewModel.clearError() },
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
-                    )
-                }
-            }
-
-            // Share event: open system share sheet when pendingShareUrl is set
-            uiState.pendingShareUrl?.let { shareUrl ->
-                LaunchedEffect(shareUrl) {
-                    val intent =
-                            Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, shareUrl)
-                            }
-                    val chooser = Intent.createChooser(intent, "Share pin")
-                    context.startActivity(chooser)
-                    viewModel.onShareHandled()
-                }
-            }
-
-            // Download success message
-            uiState.downloadMessage?.let { msg ->
-                if (uiState.pin != null) {
-                    SuccessSnackbar(
-                            message = msg,
-                            onDismiss = { viewModel.clearDownloadMessage() },
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
-                    )
-                }
+            uiState.errorMessage != null -> {
+                ErrorView(message = uiState.errorMessage!!, onRetry = { viewModel.retry() })
             }
         }
 
-        // Comment Dialog
-        if (showCommentDialog) {
-            CommentDialog(
-                    onDismiss = { showCommentDialog = false },
-                    onSubmit = { comment ->
-                        viewModel.addComment(comment)
-                        showCommentDialog = false
-                    }
+        // Comments Bottom Sheet
+        if (showCommentsSheet && uiState.pin != null) {
+            CommentsBottomSheet(
+                pinId = uiState.pin!!._id ?: "",
+                comments = uiState.comments,
+                repliesMap = uiState.repliesMap,
+                expandedReplies = uiState.expandedReplies,
+                commentsCount = uiState.commentsCount,
+                commentText = commentText,
+                onCommentTextChange = { commentText = it },
+                onDismiss = { showCommentsSheet = false },
+                onSubmitComment = {
+                    viewModel.addComment(it)
+                    commentText = ""
+                },
+                onShare = { viewModel.onShareClicked() },
+                onToggleCommentLike = { commentId ->
+                    viewModel.toggleCommentLike(commentId)
+                },
+                onDeleteComment = { commentId ->
+                    viewModel.deleteComment(commentId)
+                },
+                onAddReply = { replyText, parentCommentId ->
+                    viewModel.addComment(replyText, parentCommentId)
+                },
+                onToggleRepliesExpanded = { commentId ->
+                    viewModel.toggleRepliesExpanded(commentId)
+                }
             )
+        }
+
+        // Success/Error Snackbar
+        uiState.errorMessage?.let { error ->
+            if (uiState.pin != null && error.contains("successfully")) {
+                SuccessSnackbar(
+                    message = error,
+                    onDismiss = { viewModel.clearError() },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+                )
+            } else if (uiState.pin != null) {
+                ErrorSnackbar(
+                    message = error,
+                    onDismiss = { viewModel.clearError() },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+                )
+            }
+        }
+
+        // Share event: open system share sheet when pendingShareUrl is set
+        uiState.pendingShareUrl?.let { shareUrl ->
+            LaunchedEffect(shareUrl) {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, shareUrl)
+                }
+                val chooser = Intent.createChooser(intent, "Share pin")
+                context.startActivity(chooser)
+                viewModel.onShareHandled()
+            }
+        }
+
+        // Download success message
+        uiState.downloadMessage?.let { msg ->
+            if (uiState.pin != null) {
+                SuccessSnackbar(
+                    message = msg,
+                    onDismiss = { viewModel.clearDownloadMessage() },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+                )
+            }
         }
     }
 }
@@ -151,585 +159,924 @@ fun PinDetailScreen(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PinDetailContent(
-        pin: Pin,
-        isSaved: Boolean,
-        isLiked: Boolean,
-        likesCount: Int,
-        commentsCount: Int,
-        comments: List<Comment>,
-        isFollowing: Boolean,
-        isFollowLoading: Boolean,
-        isDownloading: Boolean,
-        relatedPins: List<Pin>,
-        showFollowButton: Boolean,
-        onToggleSave: () -> Unit,
-        onToggleLike: () -> Unit,
-        onShare: () -> Unit,
-        onDownload: () -> Unit,
-        onFollow: () -> Unit,
-        onCommentClick: () -> Unit,
-        onRelatedPinClick: (String) -> Unit
+    pin: Pin,
+    isSaved: Boolean,
+    isLiked: Boolean,
+    likesCount: Int,
+    commentsCount: Int,
+    comments: List<Comment>,
+    isFollowing: Boolean,
+    isFollowLoading: Boolean,
+    isCheckingFollow: Boolean,
+    isDownloading: Boolean,
+    relatedPins: List<Pin>,
+    showFollowButton: Boolean,
+    onNavigateBack: () -> Unit,
+    onToggleSave: () -> Unit,
+    onToggleLike: () -> Unit,
+    onShare: () -> Unit,
+    onDownload: () -> Unit,
+    onFollow: () -> Unit,
+    onCommentClick: () -> Unit,
+    onRelatedPinClick: (String) -> Unit
 ) {
     Column(
-            modifier =
-                    Modifier.fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .background(Color(0xFFF8F8F8))
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .background(Color.White)
     ) {
-        // Multi-Media Carousel (with single image fallback)
+        // Image Section with Overlay Back Button
         val mediaList = pin.media ?: emptyList()
         
-        if (mediaList.isNotEmpty()) {
-            MediaCarousel(
-                media = mediaList,
-                modifier = Modifier.fillMaxWidth().height(450.dp),
-                isSaved = isSaved,
-                onToggleSave = onToggleSave,
-                onShare = onShare,
-                onDownload = onDownload,
-                isDownloading = isDownloading
-            )
-        } else {
-            // Fallback for single image
-            Box(modifier = Modifier.fillMaxWidth().height(450.dp)) {
-                AsyncImage(
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(600.dp)
+        ) {
+            if (mediaList.isNotEmpty()) {
+                MediaCarousel(
+                    media = mediaList,
+                    modifier = Modifier.fillMaxSize(),
+                    isSaved = isSaved,
+                    onToggleSave = onToggleSave,
+                    onShare = onShare,
+                    onDownload = onDownload,
+                    isDownloading = isDownloading,
+                    onNavigateBack = onNavigateBack
+                )
+            } else {
+                // Single image fallback
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AsyncImage(
                         model = pin.firstMediaUrl ?: pin.imageUrl ?: pin.videoUrl,
                         contentDescription = pin.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
-                )
-
-                // Gradient overlay at bottom
-                Box(
-                        modifier =
-                                Modifier.fillMaxWidth()
-                                        .height(120.dp)
-                                        .align(Alignment.BottomCenter)
-                                        .background(
-                                                Brush.verticalGradient(
-                                                        colors =
-                                                                listOf(
-                                                                        Color.Transparent,
-                                                                        Color.Black.copy(alpha = 0.7f)
-                                                                )
-                                                )
-                                        )
-                )
-
-                // Action buttons overlay
-                Row(
-                        modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ModernActionButton(
-                            icon =
-                                    if (isSaved) Icons.Filled.Bookmark
-                                    else Icons.Outlined.BookmarkBorder,
-                            onClick = onToggleSave,
-                            tint = if (isSaved) Color(0xFFE60023) else Color.White
                     )
-                    ModernActionButton(icon = Icons.Outlined.Share, onClick = onShare)
-                    ModernActionButton(
-                            icon =
-                                    if (isDownloading) Icons.Filled.Download
-                                    else Icons.Outlined.Download,
-                            onClick = onDownload
-                    )
-                    ModernActionButton(
-                            icon = Icons.Outlined.MoreVert,
-                            onClick = { /* TODO: Implement more options */}
-                    )
-                }
-            }
-        }
-
-        // Content Card
-        Card(
-                modifier = Modifier.fillMaxWidth().offset(y = (-30).dp),
-                shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-                // Title
-                Text(
-                        text = pin.title,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1C1C1C),
-                        lineHeight = 36.sp
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Interaction Buttons
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModernInteractionButton(
-                            icon =
-                                    if (isLiked) Icons.Filled.Favorite
-                                    else Icons.Outlined.FavoriteBorder,
-                            text = if (likesCount > 0) "$likesCount" else "Like",
-                            isActive = isLiked,
-                            onClick = onToggleLike,
-                            modifier = Modifier.weight(1f)
-                    )
-
-                    ModernInteractionButton(
-                            icon = Icons.Outlined.ChatBubbleOutline,
-                            text = if (commentsCount > 0) "$commentsCount" else "Comment",
-                            isActive = false,
-                            onClick = onCommentClick,
-                            modifier = Modifier.weight(1f)
-                    )
-
-                    ModernInteractionButton(
-                            icon = Icons.Outlined.Share,
-                            text = "Share",
-                            isActive = false,
-                            onClick = onShare,
-                            modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Description
-                pin.description?.let { desc ->
-                    if (desc.isNotBlank()) {
-                        Text(
-                                text = "Description",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF1C1C1C)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                                text = desc,
-                                fontSize = 16.sp,
-                                color = Color(0xFF424242),
-                                lineHeight = 24.sp
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                    }
-                }
-
-                // Link
-                pin.link?.let { link ->
-                    if (link.isNotBlank()) {
-                        Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F7FF))
+                    
+                    // Back button overlay
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(16.dp)
+                            .size(40.dp),
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.9f),
+                        shadowElevation = 4.dp
+                    ) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier.fillMaxSize()
                         ) {
-                            Row(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.Black,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    
+                    // Action buttons overlay (top right)
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shadowElevation = 4.dp
+                        ) {
+                            IconButton(
+                                onClick = onToggleSave,
+                                modifier = Modifier.fillMaxSize()
                             ) {
                                 Icon(
-                                        Icons.Outlined.Link,
-                                        contentDescription = "Link",
-                                        tint = Color(0xFF1976D2),
-                                        modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                        text = link,
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF1976D2),
-                                        modifier = Modifier.weight(1f),
-                                        fontWeight = FontWeight.Medium
+                                    imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                    contentDescription = if (isSaved) "Unsave" else "Save",
+                                    tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(20.dp))
-                    }
-                }
-
-                Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // User Information
-                val user = pin.user
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                            modifier =
-                                    Modifier.size(56.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                    Brush.linearGradient(
-                                                            colors =
-                                                                    listOf(
-                                                                            Color(0xFFE60023),
-                                                                            Color(0xFFFF6B6B)
-                                                                    )
-                                                    )
-                                            ),
-                            contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                                Icons.Default.Person,
-                                contentDescription = "Profile",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        if (user != null) {
-                            Text(
-                                    text = user.username,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1C1C1C)
-                            )
-                            if (!user.email.isNullOrBlank()) {
-                                Text(text = user.email, fontSize = 14.sp, color = Color(0xFF757575))
+                        
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shadowElevation = 4.dp
+                        ) {
+                            IconButton(
+                                onClick = onShare,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Share,
+                                    contentDescription = "Share",
+                                    tint = Color(0xFF1C1C1C),
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                        } else {
-                            Text(
-                                    text = "Unknown User",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1C1C1C)
-                            )
+                        }
+                        
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shadowElevation = 4.dp
+                        ) {
+                            IconButton(
+                                onClick = onDownload,
+                                modifier = Modifier.fillMaxSize(),
+                                enabled = !isDownloading
+                            ) {
+                                if (isDownloading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Color(0xFFE60023),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Download,
+                                        contentDescription = "Download",
+                                        tint = Color(0xFF1C1C1C),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.9f),
+                            shadowElevation = 4.dp
+                        ) {
+                            IconButton(
+                                onClick = { /* TODO: More options */ },
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.MoreVert,
+                                    contentDescription = "More",
+                                    tint = Color(0xFF1C1C1C),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
-
-                    if (showFollowButton) {
-                        Button(
-                                onClick = onFollow,
-                                enabled = !isFollowLoading,
-                                shape = RoundedCornerShape(24.dp),
-                                colors =
-                                        ButtonDefaults.buttonColors(
-                                                containerColor =
-                                                        if (isFollowing) Color(0xFFBDBDBD)
-                                                        else Color(0xFFE60023)
-                                        )
-                        ) { Text(text = if (isFollowing) "Unfollow" else "Follow") }
-                    }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
-        
-        // Comments Section
-        if (comments.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+
+        // Engagement Section - Pinterest Style
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left side: Like, Comment, Share, More
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                    // Comments header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                // Like button
+                Row(
+                    modifier = Modifier.clickable { onToggleLike() },
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        contentDescription = "Like",
+                        tint = if (isLiked) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    if (likesCount > 0) {
                         Text(
-                            text = "Comments",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
+                            text = "$likesCount",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF1C1C1C)
                         )
+                    }
+                }
+
+                // Comment button
+                Row(
+                    modifier = Modifier.clickable { onCommentClick() },
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = "Comment",
+                        tint = Color(0xFF1C1C1C),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    if (commentsCount > 0) {
                         Text(
                             text = "$commentsCount",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF757575)
+                            color = Color(0xFF1C1C1C)
                         )
                     }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Comments list (show max 5, with "View All" button)
-                    val displayComments = comments.take(5)
-                    displayComments.forEachIndexed { index, comment ->
-                        CommentItemCompact(comment = comment)
-                        if (index < displayComments.size - 1) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                    }
-                    
-                    // Show "View All" button if there are more comments
-                    if (comments.size > 5) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        TextButton(
-                            onClick = { /* TODO: Navigate to full comments screen */ },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "View all ${comments.size} comments",
-                                color = Color(0xFFE60023),
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
+                }
+
+                // Share button
+                IconButton(onClick = onShare) {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowUpward,
+                        contentDescription = "Share",
+                        tint = Color(0xFF1C1C1C),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                // More options
+                IconButton(onClick = { /* TODO: Show more options */ }) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreHoriz,
+                        contentDescription = "More",
+                        tint = Color(0xFF1C1C1C),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            // Right side: Save button (Pinterest red)
+            Button(
+                onClick = onToggleSave,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isSaved) Color(0xFFBDBDBD) else Color(0xFFE60023)
+                ),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.height(40.dp)
+            ) {
+                Text(
+                    text = if (isSaved) "Saved" else "Save",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+
+        Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+
+        // User Info Section
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Profile Picture
+            val user = pin.user
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFE60023),
+                                Color(0xFFFF6B6B)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.ArrowForward,
-                                contentDescription = "View all",
-                                tint = Color(0xFFE60023),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                    
-                    // Add comment button
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onCommentClick,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE60023)
                         )
-                    ) {
-                        Icon(
-                            Icons.Outlined.ChatBubbleOutline,
-                            contentDescription = "Add comment",
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (user != null && !user.username.isNullOrBlank()) {
+                    Text(
+                        text = user.username.take(1).uppercase(),
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = "Profile",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Username and Title
+            Column(modifier = Modifier.weight(1f)) {
+                if (user != null) {
+                    Text(
+                        text = user.username,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1C1C1C)
+                    )
+                }
+                Text(
+                    text = pin.title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1C1C1C),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Add Comment Input
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Profile icon button
+            IconButton(
+                onClick = { /* TODO: Open profile */ },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE0E0E0)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add",
+                        tint = Color(0xFF757575),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Comment input field
+            OutlinedTextField(
+                value = "",
+                onValueChange = { },
+                placeholder = { Text("Add a comment") },
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onCommentClick() },
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color(0xFFE0E0E0),
+                    focusedBorderColor = Color(0xFFE60023)
+                ),
+                readOnly = true,
+                enabled = false
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // More to Explore Section
+        if (relatedPins.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "More to explore",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1C1C1C)
+                    )
+                    TextButton(onClick = { /* TODO: See more */ }) {
                         Text(
-                            text = "Add Comment",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
+                            text = "See more",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1C1C1C)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Related pins grid
+                kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.components.RelatedPinsSection(
+                    relatedPins = relatedPins,
+                    onPinClick = { pinId -> pinId?.let { onRelatedPinClick(it) } },
+                    onSaveClick = { /* TODO: Implement save for related pins */ },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CommentsBottomSheet(
+    pinId: String,
+    comments: List<Comment>,
+    repliesMap: Map<String, List<Comment>>,
+    expandedReplies: Set<String>,
+    commentsCount: Int,
+    commentText: String,
+    onCommentTextChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onSubmitComment: (String) -> Unit,
+    onShare: () -> Unit,
+    onToggleCommentLike: (String) -> Unit,
+    onDeleteComment: (String) -> Unit,
+    onAddReply: (String, String) -> Unit,
+    onToggleRepliesExpanded: (String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color(0xFFE0E0E0))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color(0xFF1C1C1C)
+                    )
+                }
+                
+                Text(
+                    text = "$commentsCount comments",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1C1C1C)
+                )
+                
+                IconButton(onClick = onShare) {
+                    Icon(
+                        Icons.Outlined.ArrowUpward,
+                        contentDescription = "Share",
+                        tint = Color(0xFF1C1C1C)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Reaction Buttons Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ReactionButton(
+                    text = "Love it ❤️",
+                    onClick = { onSubmitComment("Love it ❤️") },
+                    modifier = Modifier.weight(1f)
+                )
+                ReactionButton(
+                    text = "Brilliant!",
+                    onClick = { onSubmitComment("Brilliant!") },
+                    modifier = Modifier.weight(1f)
+                )
+                ReactionButton(
+                    text = "Obsessed 😍",
+                    onClick = { onSubmitComment("Obsessed 😍") },
+                    modifier = Modifier.weight(1f)
+                )
+                ReactionButton(
+                    text = "Looks cool",
+                    onClick = { onSubmitComment("Looks cool") },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Comments List
+            if (comments.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No comments yet",
+                        fontSize = 14.sp,
+                        color = Color(0xFF757575)
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    comments.forEach { comment ->
+                        CommentItemWithReplies(
+                            comment = comment,
+                            replies = repliesMap[comment._id] ?: emptyList(),
+                            isRepliesExpanded = comment._id in expandedReplies,
+                            onToggleLike = { onToggleCommentLike(comment._id) },
+                            onAddReply = { replyText -> onAddReply(replyText, comment._id) },
+                            onDelete = { onDeleteComment(comment._id) },
+                            onToggleRepliesExpanded = { onToggleRepliesExpanded(comment._id) },
+                            onToggleReplyLike = onToggleCommentLike,
+                            onDeleteReply = onDeleteComment
                         )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add Comment Input
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { /* TODO: Add media */ },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE0E0E0)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = "Add",
+                            tint = Color(0xFF757575),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                OutlinedTextField(
+                    value = commentText,
+                    onValueChange = onCommentTextChange,
+                    placeholder = { Text("Add a comment") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                        focusedBorderColor = Color(0xFFE60023)
+                    ),
+                    trailingIcon = {
+                        if (commentText.isNotBlank()) {
+                            IconButton(onClick = { onSubmitComment(commentText) }) {
+                                Icon(
+                                    Icons.Default.Send,
+                                    contentDescription = "Send",
+                                    tint = Color(0xFFE60023)
+                                )
+                            }
+                        }
+                    }
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
         }
-        
-        // Related Pins Section
-        if (relatedPins.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.components.RelatedPinsSection(
-                relatedPins = relatedPins,
-                onPinClick = { pinId -> pinId?.let { onRelatedPinClick(it) } },
-                onSaveClick = { /* TODO: Implement save for related pins */ },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
     }
 }
 
 @Composable
-private fun CommentItemCompact(comment: Comment) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFE0E0E0)),
-                contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                    Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color(0xFF9E9E9E),
-                    modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                    text = comment.user.username,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    color = Color(0xFF1C1C1C)
-            )
-            Text(
-                    text = comment.content,
-                    fontSize = 14.sp,
-                    color = Color(0xFF424242),
-                    lineHeight = 20.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun ModernActionButton(
-        icon: androidx.compose.ui.graphics.vector.ImageVector,
-        onClick: () -> Unit,
-        tint: Color = Color.White
+private fun ReactionButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-            modifier = Modifier.size(48.dp),
-            shape = CircleShape,
-            color = Color.Black.copy(alpha = 0.3f)
+        modifier = modifier.height(36.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFF5F5F5),
+        onClick = onClick
     ) {
-        IconButton(onClick = onClick, modifier = Modifier.fillMaxSize()) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF1C1C1C)
+            )
         }
     }
 }
 
 @Composable
-private fun ModernInteractionButton(
-        icon: androidx.compose.ui.graphics.vector.ImageVector,
-        text: String,
-        isActive: Boolean,
-        onClick: () -> Unit,
-        modifier: Modifier = Modifier
+private fun CommentItemWithReplies(
+    comment: Comment,
+    replies: List<Comment>,
+    isRepliesExpanded: Boolean,
+    onToggleLike: () -> Unit,
+    onAddReply: (String) -> Unit,
+    onDelete: () -> Unit,
+    onToggleRepliesExpanded: () -> Unit,
+    onToggleReplyLike: (String) -> Unit,
+    onDeleteReply: (String) -> Unit,
+    isReply: Boolean = false
 ) {
-    Button(
-            onClick = onClick,
-            modifier = modifier.height(52.dp),
-            shape = RoundedCornerShape(26.dp),
-            colors =
-                    ButtonDefaults.buttonColors(
-                            containerColor = if (isActive) Color(0xFFFFEBEE) else Color(0xFFF5F5F5),
-                            contentColor = if (isActive) Color(0xFFE60023) else Color(0xFF666666)
+    var replyText by remember { mutableStateOf("") }
+    var showReplyInput by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Main Comment
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top
+        ) {
+            // Indentation for replies
+            if (isReply) {
+                Spacer(modifier = Modifier.width(24.dp))
+            }
+
+            // Profile Picture
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFE60023),
+                                Color(0xFFFF6B6B)
+                            )
+                        )
                     ),
-            elevation =
-                    ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 2.dp)
-    ) {
-        Icon(icon, contentDescription = text, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text = text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun CommentDialog(onDismiss: () -> Unit, onSubmit: (String) -> Unit) {
-    var commentText by remember { mutableStateOf("") }
-
-    AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text("Add Comment", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-            text = {
-                TextField(
-                        value = commentText,
-                        onValueChange = { commentText = it },
-                        placeholder = { Text("Write your comment...") },
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
-                        colors =
-                                TextFieldDefaults.colors(
-                                        focusedContainerColor = Color(0xFFF5F5F5),
-                                        unfocusedContainerColor = Color(0xFFF5F5F5),
-                                        focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent
-                                ),
-                        shape = RoundedCornerShape(12.dp)
-                )
-            },
-            confirmButton = {
-                Button(
-                        onClick = {
-                            if (commentText.isNotBlank()) {
-                                onSubmit(commentText)
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE60023)),
-                        enabled = commentText.isNotBlank()
-                ) { Text("Post") }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismiss) { Text("Cancel", color = Color(0xFF666666)) }
-            },
-            shape = RoundedCornerShape(20.dp)
-    )
-}
-
-@Composable
-private fun LoadingView() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            CircularProgressIndicator(color = Color(0xFFE60023), strokeWidth = 3.dp)
-            Text(text = "Loading pin details...", fontSize = 14.sp, color = Color(0xFF757575))
-        }
-    }
-}
-
-@Composable
-private fun ErrorView(message: String, onRetry: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                    Icons.Default.Error,
-                    contentDescription = null,
-                    tint = Color(0xFFD32F2F),
-                    modifier = Modifier.size(64.dp)
-            )
-            Text(
-                    text = message,
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = comment.user.username.take(1).uppercase(),
+                    color = Color.White,
                     fontSize = 16.sp,
-                    color = Color(0xFF424242),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Button(
-                    onClick = onRetry,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE60023)),
-                    shape = RoundedCornerShape(24.dp)
-            ) { Text("Retry") }
-        }
-    }
-}
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-@Composable
-private fun ErrorSnackbar(message: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFD32F2F))
             Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                    text = message,
-                    color = Color(0xFFD32F2F),
-                    modifier = Modifier.weight(1f),
-                    fontSize = 14.sp
-            )
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color(0xFFD32F2F))
+
+            Column(modifier = Modifier.weight(1f)) {
+                // Username and timestamp
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = comment.user.username,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1C1C1C)
+                    )
+                    Text(
+                        text = formatTimestamp(comment.createdAt),
+                        fontSize = 12.sp,
+                        color = Color(0xFF757575)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Comment content
+                Text(
+                    text = comment.content,
+                    fontSize = 14.sp,
+                    color = Color(0xFF1C1C1C),
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Actions: Reply, Like, More
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = { showReplyInput = !showReplyInput },
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = "Reply",
+                            fontSize = 12.sp,
+                            color = Color(0xFF757575)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.clickable { onToggleLike() },
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (comment.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Like",
+                            tint = if (comment.isLiked) Color(0xFFE60023) else Color(0xFF757575),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        if (comment.likesCount > 0) {
+                            Text(
+                                text = "${comment.likesCount}",
+                                fontSize = 12.sp,
+                                color = Color(0xFF757575)
+                            )
+                        }
+                    }
+
+                    // More options dropdown
+                    var showMoreMenu by remember { mutableStateOf(false) }
+                    
+                    Box {
+                        IconButton(
+                            onClick = { showMoreMenu = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.MoreHoriz,
+                                contentDescription = "More",
+                                tint = Color(0xFF757575),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        
+                        DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = Color(0xFFD32F2F)) },
+                                onClick = {
+                                    onDelete()
+                                    showMoreMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Inline Reply Input
+                if (showReplyInput) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = replyText,
+                            onValueChange = { replyText = it },
+                            placeholder = { Text("Write a reply...") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color(0xFFE0E0E0),
+                                focusedBorderColor = Color(0xFFE60023)
+                            ),
+                            maxLines = 3,
+                            trailingIcon = {
+                                if (replyText.isNotBlank()) {
+                                    IconButton(onClick = {
+                                        onAddReply(replyText)
+                                        replyText = ""
+                                        showReplyInput = false
+                                    }) {
+                                        Icon(
+                                            Icons.Default.Send,
+                                            contentDescription = "Send",
+                                            tint = Color(0xFFE60023),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+
+                // View Replies Button
+                if (comment.repliesCount > 0 && !isReply) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = onToggleRepliesExpanded,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isRepliesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = Color(0xFF757575),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isRepliesExpanded) "Hide ${comment.repliesCount} replies" else "View ${comment.repliesCount} replies",
+                            fontSize = 12.sp,
+                            color = Color(0xFF757575),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+        // Nested Replies
+        if (isRepliesExpanded && replies.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                replies.forEach { reply ->
+                    CommentItemWithReplies(
+                        comment = reply,
+                        replies = emptyList(), // Replies don't have nested replies
+                        isRepliesExpanded = false,
+                        onToggleLike = { onToggleReplyLike(reply._id) },
+                        onAddReply = { /* Replies can't have replies */ },
+                        onDelete = { onDeleteReply(reply._id) },
+                        onToggleRepliesExpanded = { },
+                        onToggleReplyLike = onToggleReplyLike,
+                        onDeleteReply = onDeleteReply,
+                        isReply = true
+                    )
+                }
             }
         }
     }
 }
 
-@Composable
-private fun SuccessSnackbar(message: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
-            modifier = modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
-            shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF388E3C))
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                    text = message,
-                    color = Color(0xFF2E7D32),
-                    modifier = Modifier.weight(1f),
-                    fontSize = 14.sp
-            )
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color(0xFF2E7D32))
-            }
+private fun formatTimestamp(timestamp: String): String {
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        val date = sdf.parse(timestamp)
+        val now = Date()
+        val diff = now.time - (date?.time ?: 0)
+        
+        when {
+            diff < 60_000 -> "now"
+            diff < 3_600_000 -> "${diff / 60_000}m"
+            diff < 86_400_000 -> "${diff / 3_600_000}h"
+            diff < 2_592_000_000 -> "${diff / 86_400_000}d"
+            diff < 31_536_000_000 -> "${diff / 2_592_000_000}mo"
+            else -> "${diff / 31_536_000_000}y"
         }
+    } catch (e: Exception) {
+        timestamp
     }
 }
 
@@ -742,7 +1089,8 @@ private fun MediaCarousel(
     onToggleSave: () -> Unit,
     onShare: () -> Unit,
     onDownload: () -> Unit,
-    isDownloading: Boolean
+    isDownloading: Boolean,
+    onNavigateBack: () -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { media.size })
     
@@ -758,22 +1106,6 @@ private fun MediaCarousel(
                     contentDescription = "Media ${page + 1}",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
-                )
-                
-                // Gradient overlay at bottom
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.7f)
-                                )
-                            )
-                        )
                 )
                 
                 // Media type indicator (image/video)
@@ -795,6 +1127,29 @@ private fun MediaCarousel(
                         )
                     }
                 }
+            }
+        }
+        
+        // Back button overlay
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .size(40.dp),
+            shape = CircleShape,
+            color = Color.White.copy(alpha = 0.9f),
+            shadowElevation = 4.dp
+        ) {
+            IconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.Black,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
         
@@ -822,43 +1177,184 @@ private fun MediaCarousel(
             }
         }
         
-        // Action buttons overlay
+        // Action buttons overlay (top right)
         Row(
-            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ModernActionButton(
-                icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                onClick = onToggleSave,
-                tint = if (isSaved) Color(0xFFE60023) else Color.White
-            )
-            ModernActionButton(icon = Icons.Outlined.Share, onClick = onShare)
-            ModernActionButton(
-                icon = if (isDownloading) Icons.Filled.Download else Icons.Outlined.Download,
-                onClick = onDownload
-            )
-            ModernActionButton(
-                icon = Icons.Outlined.MoreVert,
-                onClick = { /* TODO: Implement more options */ }
-            )
-        }
-        
-        // Counter badge (e.g., "1/5")
-        if (media.size > 1) {
             Surface(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = Color.Black.copy(alpha = 0.5f)
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.9f),
+                shadowElevation = 4.dp
             ) {
-                Text(
-                    text = "${pagerState.currentPage + 1}/${media.size}",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+                IconButton(
+                    onClick = onToggleSave,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                        contentDescription = if (isSaved) "Unsave" else "Save",
+                        tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.9f),
+                shadowElevation = 4.dp
+            ) {
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Share,
+                        contentDescription = "Share",
+                        tint = Color(0xFF1C1C1C),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.9f),
+                shadowElevation = 4.dp
+            ) {
+                IconButton(
+                    onClick = onDownload,
+                    modifier = Modifier.fillMaxSize(),
+                    enabled = !isDownloading
+                ) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = Color(0xFFE60023),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Download,
+                            contentDescription = "Download",
+                            tint = Color(0xFF1C1C1C),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+            
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = Color.White.copy(alpha = 0.9f),
+                shadowElevation = 4.dp
+            ) {
+                IconButton(
+                    onClick = { /* TODO: More options */ },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "More",
+                        tint = Color(0xFF1C1C1C),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoadingView() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CircularProgressIndicator(color = Color(0xFFE60023), strokeWidth = 3.dp)
+            Text(text = "Loading pin details...", fontSize = 14.sp, color = Color(0xFF757575))
+        }
+    }
+}
+
+@Composable
+private fun ErrorView(message: String, onRetry: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                Icons.Default.Error,
+                contentDescription = null,
+                tint = Color(0xFFD32F2F),
+                modifier = Modifier.size(64.dp)
+            )
+            Text(
+                text = message,
+                fontSize = 16.sp,
+                color = Color(0xFF424242),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE60023)),
+                shape = RoundedCornerShape(24.dp)
+            ) { Text("Retry") }
+        }
+    }
+}
+
+@Composable
+private fun ErrorSnackbar(message: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFD32F2F))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = message,
+                color = Color(0xFFD32F2F),
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color(0xFFD32F2F))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuccessSnackbar(message: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF388E3C))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = message,
+                color = Color(0xFF2E7D32),
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color(0xFF2E7D32))
             }
         }
     }

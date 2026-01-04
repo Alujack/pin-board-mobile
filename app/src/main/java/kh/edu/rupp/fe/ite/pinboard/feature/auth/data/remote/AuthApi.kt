@@ -183,5 +183,6 @@ data class CheckFollowingResponse(
 )
 
 data class CheckFollowingData(
-    val following: Boolean
+    val following: Boolean,
+    val status: String?
 )

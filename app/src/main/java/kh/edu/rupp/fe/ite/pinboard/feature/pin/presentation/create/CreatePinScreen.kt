@@ -200,7 +200,16 @@ fun CreatePinScreen(
                         boards = state.boards,
                         selectedBoard = state.selectedBoard,
                         isLoading = state.isLoading,
-                        onBoardSelected = viewModel::onBoardSelected
+                        isCreatingBoard = state.isCreatingBoard,
+                        showCreateBoardDialog = state.showCreateBoardDialog,
+                        newBoardName = state.newBoardName,
+                        newBoardDescription = state.newBoardDescription,
+                        onBoardSelected = viewModel::onBoardSelected,
+                        onShowCreateBoardDialog = viewModel::showCreateBoardDialog,
+                        onHideCreateBoardDialog = viewModel::hideCreateBoardDialog,
+                        onNewBoardNameChange = viewModel::onNewBoardNameChange,
+                        onNewBoardDescriptionChange = viewModel::onNewBoardDescriptionChange,
+                        onCreateBoard = viewModel::createBoard
                     )
                 }
             }

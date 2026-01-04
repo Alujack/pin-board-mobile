@@ -2,6 +2,7 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.data.remote
 
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.ApiListResponse
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.ApiResponse
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.MediaItem
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.PinResponse
@@ -22,7 +23,7 @@ interface PinApi {
         @Query("q") query: String
     ): PinResponse
 
-    @GET("api/pins")
+    @GET("api/pins/all-pins")
     suspend fun getAllPins(): PinResponse
 
     @GET("api/pins/detail/{id}")
@@ -44,14 +45,26 @@ interface PinApi {
     suspend fun getCreatedImages(): ApiListResponse<MediaItem>
 
     // Boards
-    @GET("api/boards")
+    @GET("api/boards/my-boards")
     suspend fun getBoards(): ApiListResponse<Board>
+
+    @GET("api/boards")
+    suspend fun getPublicBoards(
+        @Query("is_public") isPublic: String = "true",
+        @Query("page") page: String = "1",
+        @Query("limit") limit: String = "50"
+    ): ApiListResponse<Board>
 
     @GET("api/boards/{id}")
     suspend fun getBoardById(@Path("id") id: String): Board
 
     @GET("api/boards/{id}/pins")
     suspend fun getPinsByBoard(@Path("id") boardId: String): PinResponse
+
+    @POST("api/boards")
+    suspend fun createBoard(
+        @Body request: CreateBoardRequest
+    ): ApiResponse<Board>
 
     // Create pin with multipart upload
     @Multipart
