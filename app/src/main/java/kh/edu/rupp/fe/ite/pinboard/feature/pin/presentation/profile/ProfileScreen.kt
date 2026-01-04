@@ -1,5 +1,6 @@
 package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,6 +36,7 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
     onNavigateBack: () -> Unit = {},
     onOpenPinDetail: (String) -> Unit = {},
+    onLogout: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -65,7 +67,8 @@ fun ProfileScreen(
             followersCount = state.followersCount,
             followingCount = state.followingCount,
             pinsCount = state.pinsCount,
-            onEditProfile = {}
+            onEditProfile = {},
+            onLogout = onLogout
         )
 
         // --- Search bar ---
@@ -204,7 +207,8 @@ private fun ProfileHeader(
     followersCount: Int,
     followingCount: Int,
     pinsCount: Int,
-    onEditProfile: () -> Unit
+    onEditProfile: () -> Unit,
+    onLogout: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -227,12 +231,42 @@ private fun ProfileHeader(
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            username,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-            color = Color(0xFF1C1C1C)
-        )
+        
+        // Username with Logout button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                username,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                color = Color(0xFF1C1C1C)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            IconButton(
+                onClick = {
+                    Log.d("ProfileScreen", "Logout button clicked - calling onLogout callback")
+                    Log.d("ProfileScreen", "onLogout callback reference: $onLogout")
+                    try {
+                        onLogout()
+                        Log.d("ProfileScreen", "onLogout callback executed successfully")
+                    } catch (e: Exception) {
+                        Log.e("ProfileScreen", "Error executing onLogout callback", e)
+                        e.printStackTrace()
+                    }
+                },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Logout,
+                    contentDescription = "Logout",
+                    tint = Color(0xFF757575),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(

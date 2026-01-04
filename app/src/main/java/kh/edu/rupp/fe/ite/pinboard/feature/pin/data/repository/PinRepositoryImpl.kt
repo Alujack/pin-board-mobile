@@ -300,6 +300,24 @@ constructor(
         }
     }
 
+    override suspend fun getReplies(
+            pinId: String,
+            parentCommentId: String,
+            page: Int,
+            limit: Int
+    ): PinResult<CommentResponse> {
+        return try {
+            val response = commentApi.getReplies(pinId, parentCommentId, page, limit)
+            if (response.isSuccessful && response.body() != null) {
+                PinResult.Success(response.body()!!)
+            } else {
+                PinResult.Error("Failed to fetch replies: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            PinResult.Error(e.toReadableMessage())
+        }
+    }
+
     override suspend fun createComment(
             pinId: String,
             content: String,

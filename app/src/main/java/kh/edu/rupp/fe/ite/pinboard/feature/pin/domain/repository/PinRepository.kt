@@ -43,6 +43,7 @@ interface PinRepository {
     
     // Comments
     suspend fun getComments(pinId: String, page: Int = 1, limit: Int = 20): PinResult<CommentResponse>
+    suspend fun getReplies(pinId: String, parentCommentId: String, page: Int = 1, limit: Int = 20): PinResult<CommentResponse>
     suspend fun createComment(pinId: String, content: String, parentCommentId: String? = null): PinResult<Comment>
     suspend fun deleteComment(commentId: String): PinResult<Unit>
     suspend fun toggleCommentLike(commentId: String): PinResult<ToggleLikeResponse>
