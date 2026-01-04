@@ -25,6 +25,10 @@ interface AuthApi {
     // Get user profile with stats
     @GET("api/users/me")
     suspend fun getCurrentUserProfile(): Response<UserProfileResponse>
+    
+    // Get user profile by userId
+    @GET("api/users/profile/{userId}")
+    suspend fun getUserProfile(@retrofit2.http.Path("userId") userId: String): Response<UserProfileResponse>
 
     // Follow / Unfollow another user
     // Backend routes: /follow/followUser and /follow/unfollowUser

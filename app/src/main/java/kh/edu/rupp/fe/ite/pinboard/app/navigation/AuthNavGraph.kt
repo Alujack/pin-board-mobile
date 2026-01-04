@@ -32,6 +32,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.register.RegisterSc
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.welcome.WelcomeScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.create.CreatePinScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile.ProfileScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile.UserProfileScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.search.SearchScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.home.HomeScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.detail.PinDetailScreen
@@ -54,6 +55,9 @@ sealed class Screen(val route: String) {
         fun createRoute(boardId: String) = "board_detail/$boardId"
     }
     object Notifications : Screen("notifications")
+    object UserProfile : Screen("user_profile/{userId}") {
+        fun createRoute(userId: String) = "user_profile/$userId"
+    }
 }
 
 /**
@@ -223,10 +227,17 @@ fun AuthNavGraph(
             )
         }
 
-        composable(Screen.PinDetail.route) {
+        composable(Screen.PinDetail.route) { backStackEntry ->
+            val pinId = backStackEntry.arguments?.getString("pinId") ?: return@composable
+            val openComments = backStackEntry.savedStateHandle.get<Boolean>("openComments") ?: false
             PinDetailScreen(
+                pinId = pinId,
+                openCommentsOnLoad = openComments,
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToUserProfile = { userId ->
+                    navController.navigate(Screen.UserProfile.createRoute(userId))
                 }
             )
         }
@@ -243,7 +254,35 @@ fun AuthNavGraph(
         }
 
         composable(Screen.Notifications.route) {
-            NotificationsScreen()
+            NotificationsScreen(
+                onNavigateToPin = { pinId ->
+                    navController.navigate(Screen.PinDetail.createRoute(pinId))
+                },
+                onNavigateToUserProfile = { userId ->
+                    navController.navigate(Screen.UserProfile.createRoute(userId))
+                },
+                onNavigateToPinWithComments = { pinId ->
+                    navController.navigate(Screen.PinDetail.createRoute(pinId)) {
+                        // Pass flag to open comments via savedStateHandle
+                        // We'll set it after navigation completes
+                    }
+                    // Set the flag after navigation
+                    navController.currentBackStackEntry?.savedStateHandle?.set("openComments", true)
+                }
+            )
+        }
+        
+        composable(Screen.UserProfile.route) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+            UserProfileScreen(
+                userId = userId,
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onOpenPinDetail = { pinId ->
+                    navController.navigate(Screen.PinDetail.createRoute(pinId))
+                }
+            )
         }
     }
 }

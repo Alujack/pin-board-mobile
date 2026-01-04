@@ -27,6 +27,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun NotificationsScreen(
     modifier: Modifier = Modifier,
+    onNavigateToPin: (String) -> Unit = {},
+    onNavigateToUserProfile: (String) -> Unit = {},
+    onNavigateToPinWithComments: (String) -> Unit = {},
     viewModel: NotificationsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -137,9 +140,69 @@ fun NotificationsScreen(
                         items(uiState.notifications) { notification ->
                             ModernNotificationItem(
                                 notification = notification,
-                                onClick = { viewModel.markAsRead(notification.id) }
+                                onClick = { 
+                                    viewModel.markAsRead(notification.id)
+                                    // Navigate based on notification type
+                                    handleNotificationClick(
+                                        notification = notification,
+                                        onNavigateToPin = onNavigateToPin,
+                                        onNavigateToUserProfile = onNavigateToUserProfile,
+                                        onNavigateToPinWithComments = onNavigateToPinWithComments
+                                    )
+                                }
                             )
                     }
+                }
+            }
+        }
+    }
+}
+
+private fun handleNotificationClick(
+    notification: Notification,
+    onNavigateToPin: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit,
+    onNavigateToPinWithComments: (String) -> Unit
+) {
+    val metadata = notification.metadata ?: return
+    
+    when (notification.type) {
+        NotificationType.COMMENT -> {
+            // Navigate to pin detail and open comments
+            metadata["pin_id"]?.let { pinId ->
+                if (pinId.isNotEmpty()) {
+                    onNavigateToPinWithComments(pinId)
+                }
+            }
+        }
+        NotificationType.LIKE, NotificationType.SAVE -> {
+            // Navigate to pin detail
+            metadata["pin_id"]?.let { pinId ->
+                if (pinId.isNotEmpty()) {
+                    onNavigateToPin(pinId)
+                }
+            }
+        }
+        NotificationType.FOLLOW -> {
+            // Navigate to user profile
+            notification.fromUser?.let { username ->
+                // We need userId, try to get from metadata
+                metadata["user_id"]?.let { userId ->
+                    if (userId.isNotEmpty()) {
+                        onNavigateToUserProfile(userId)
+                    }
+                }
+            } ?: metadata["user_id"]?.let { userId ->
+                if (userId.isNotEmpty()) {
+                    onNavigateToUserProfile(userId)
+                }
+            }
+        }
+        NotificationType.SYSTEM -> {
+            // Try to navigate to pin if available
+            metadata["pin_id"]?.let { pinId ->
+                if (pinId.isNotEmpty()) {
+                    onNavigateToPin(pinId)
                 }
             }
         }

@@ -38,15 +38,25 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PinDetailScreen(
+    pinId: String? = null,
+    openCommentsOnLoad: Boolean = false,
     onNavigateBack: () -> Unit,
     onNavigateToComments: (String) -> Unit = {},
     onNavigateToPin: (String) -> Unit = {},
+    onNavigateToUserProfile: (String) -> Unit = {},
     viewModel: PinDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var showCommentsSheet by remember { mutableStateOf(false) }
+    var showCommentsSheet by remember { mutableStateOf(openCommentsOnLoad) }
     var commentText by remember { mutableStateOf("") }
+    
+    // Open comments if requested
+    LaunchedEffect(openCommentsOnLoad) {
+        if (openCommentsOnLoad) {
+            showCommentsSheet = true
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         when {
@@ -74,7 +84,8 @@ fun PinDetailScreen(
                     onDownload = { viewModel.onDownloadClicked() },
                     onFollow = { viewModel.onFollowClicked() },
                     onCommentClick = { showCommentsSheet = true },
-                    onRelatedPinClick = onNavigateToPin
+                    onRelatedPinClick = onNavigateToPin,
+                    onNavigateToUserProfile = onNavigateToUserProfile
                 )
             }
             uiState.errorMessage != null -> {
@@ -178,7 +189,8 @@ private fun PinDetailContent(
     onDownload: () -> Unit,
     onFollow: () -> Unit,
     onCommentClick: () -> Unit,
-    onRelatedPinClick: (String) -> Unit
+    onRelatedPinClick: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
