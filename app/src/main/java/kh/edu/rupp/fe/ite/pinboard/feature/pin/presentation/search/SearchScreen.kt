@@ -3,9 +3,9 @@ package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.search
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,6 +14,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +29,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Pin
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.data.model.Board
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,10 +58,13 @@ fun SearchScreen(
         }
     }
 
-    Scaffold { paddingValues ->
+    Scaffold(
+        containerColor = Color.White
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color.White)
                 .padding(paddingValues)
         ) {
             // Search Bar
@@ -102,14 +108,15 @@ fun SearchScreen(
                 }
 
                 state.searchResults.isNotEmpty() -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                    LazyVerticalStaggeredGrid(
+                        columns = StaggeredGridCells.Fixed(2),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
-                        contentPadding = PaddingValues(16.dp),
+                            .weight(1f)
+                            .background(Color.White),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalItemSpacing = 16.dp
                     ) {
                         items(state.searchResults) { pin ->
                             val id = pin._id ?: ""
@@ -331,17 +338,17 @@ private fun PinItem(
     onToggleSave: () -> Unit,
     onDownload: () -> Unit
 ) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .clickable { onClick() }
+            .clip(RoundedCornerShape(20.dp))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp)
+                .aspectRatio(getPinAspectRatio(pin))
+                .clip(RoundedCornerShape(20.dp))
         ) {
             // Pin Image
             AsyncImage(
@@ -351,18 +358,18 @@ private fun PinItem(
                 contentScale = ContentScale.Crop
             )
 
-            // Gradient overlay for better text readability
+            // Gradient overlay at bottom for text readability
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(80.dp)
                     .background(
-                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                        Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
-                            ),
-                            startY = 0f,
-                            endY = Float.POSITIVE_INFINITY
+                                Color.Black.copy(alpha = 0.4f)
+                            )
                         )
                     )
             )
@@ -376,10 +383,10 @@ private fun PinItem(
             ) {
                 // Save button
                 Surface(
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color.White.copy(alpha = 0.95f),
-                    shadowElevation = 2.dp
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White.copy(alpha = 0.9f),
+                    shadowElevation = 4.dp
                 ) {
                     IconButton(
                         onClick = onToggleSave,
@@ -392,7 +399,7 @@ private fun PinItem(
                                 Icons.Outlined.BookmarkBorder
                             },
                             contentDescription = if (isSaved) "Saved" else "Save",
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = if (isSaved) Color(0xFFE60023) else Color(0xFF1C1C1C)
                         )
                     }
@@ -400,10 +407,10 @@ private fun PinItem(
 
                 // Download button
                 Surface(
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    color = Color.White.copy(alpha = 0.95f),
-                    shadowElevation = 2.dp
+                    modifier = Modifier.size(40.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White.copy(alpha = 0.9f),
+                    shadowElevation = 4.dp
                 ) {
                     IconButton(
                         onClick = onDownload,
@@ -412,7 +419,7 @@ private fun PinItem(
                         Icon(
                             Icons.Outlined.Download,
                             contentDescription = "Download",
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = Color(0xFF1C1C1C)
                         )
                     }
@@ -424,12 +431,12 @@ private fun PinItem(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(12.dp)
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
             ) {
                 Text(
                     text = pin.title,
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -439,18 +446,19 @@ private fun PinItem(
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             Icons.Outlined.Person,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(16.dp),
                             tint = Color.White.copy(alpha = 0.9f)
                         )
                         Text(
                             text = user.username,
                             color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -459,6 +467,14 @@ private fun PinItem(
             }
         }
     }
+}
+
+// Helper function to get varying aspect ratios for Pinterest-style staggered grid
+private fun getPinAspectRatio(pin: Pin): Float {
+    // Use pin ID hash to create variety in aspect ratios
+    val hash = abs((pin._id ?: pin.id ?: "").hashCode())
+    // Aspect ratios between 0.6 (tall) and 1.4 (wide) for variety
+    return 0.6f + (hash % 80) / 100f // Range: 0.6 to 1.4
 }
 
 @Composable

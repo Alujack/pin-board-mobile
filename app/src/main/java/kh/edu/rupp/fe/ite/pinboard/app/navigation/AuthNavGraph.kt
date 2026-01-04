@@ -23,10 +23,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.data.local.TokenManager
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.login.LoginScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.register.RegisterScreen
+import kh.edu.rupp.fe.ite.pinboard.feature.auth.presentation.welcome.WelcomeScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.create.CreatePinScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile.ProfileScreen
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.search.SearchScreen
@@ -37,6 +40,7 @@ import kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.notifications.Notifi
 import kh.edu.rupp.fe.ite.pinboard.feature.pin.services.FCMTokenManager
 
 sealed class Screen(val route: String) {
+    object Welcome : Screen("welcome")
     object Login : Screen("login")
     object Register : Screen("register")
     object Home : Screen("home")
@@ -62,7 +66,7 @@ fun AuthNavGraph(
     fcmTokenManager: FCMTokenManager
 ) {
     val context = LocalContext.current
-    var startDestination by remember { mutableStateOf(Screen.Login.route) }
+    var startDestination by remember { mutableStateOf(Screen.Welcome.route) }
     val scope = rememberCoroutineScope()
 
     // Check token on app start
@@ -80,8 +84,24 @@ fun AuthNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
+        composable(Screen.Welcome.route) {
+            WelcomeScreen(
+                onSignUpClick = {
+                    navController.navigate(Screen.Register.route)
+                },
+                onLogInClick = {
+                    navController.navigate(Screen.Login.route)
+                }
+            )
+        }
+
         composable(Screen.Login.route) {
             LoginScreen(
+                onNavigateBack = {
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
                 },
@@ -96,11 +116,13 @@ fun AuthNavGraph(
         composable(Screen.Register.route) {
             RegisterScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigate(Screen.Welcome.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
                 },
                 onRegisterSuccess = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Register.route) { inclusive = true }
+                        popUpTo(Screen.Welcome.route) { inclusive = false }
                     }
                 }
             )
@@ -117,8 +139,8 @@ fun AuthNavGraph(
                         // Clear auth tokens
                         tokenManager.clearAllTokens()
                         
-                        // Navigate to login
-                        navController.navigate(Screen.Login.route) {
+                        // Navigate to welcome
+                        navController.navigate(Screen.Welcome.route) {
                             popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     }
@@ -144,6 +166,48 @@ fun AuthNavGraph(
                 },
                 onOpenPinDetail = { pinId ->
                     navController.navigate(Screen.PinDetail.createRoute(pinId))
+                },
+                onLogout = {
+                    Log.d("AuthNavGraph", "✅ onLogout callback received in AuthNavGraph")
+                    Log.d("AuthNavGraph", "Scope: $scope, NavController: $navController")
+                    scope.launch(Dispatchers.Main) {
+                        Log.d("AuthNavGraph", "✅ Coroutine launched for logout")
+                        try {
+                            Log.d("AuthNavGraph", "Starting logout process...")
+                            
+                            // Remove FCM token from backend (non-blocking)
+                            fcmTokenManager.removeFCMToken()
+                            Log.d("AuthNavGraph", "FCM token removal initiated")
+                            
+                            // Clear auth tokens
+                            withContext(Dispatchers.IO) {
+                                tokenManager.clearAllTokens()
+                            }
+                            Log.d("AuthNavGraph", "Auth tokens cleared")
+                            
+                            // Navigate to welcome (must be on Main thread)
+                            Log.d("AuthNavGraph", "Navigating to Welcome screen...")
+                            navController.navigate(Screen.Welcome.route) {
+                                popUpTo(Screen.Home.route) { inclusive = true }
+                            }
+                            Log.d("AuthNavGraph", "Logout completed successfully")
+                        } catch (e: Exception) {
+                            Log.e("AuthNavGraph", "Error during logout", e)
+                            e.printStackTrace()
+                            // Still try to logout even if there's an error
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    tokenManager.clearAllTokens()
+                                }
+                                navController.navigate(Screen.Welcome.route) {
+                                    popUpTo(Screen.Home.route) { inclusive = true }
+                                }
+                            } catch (ex: Exception) {
+                                Log.e("AuthNavGraph", "Critical error during logout", ex)
+                                ex.printStackTrace()
+                            }
+                        }
+                    }
                 }
             )
         }
@@ -208,21 +272,21 @@ fun MainHomeScreen(
     val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Pinterest",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                actions = {
-                    TextButton(onClick = onLogout) {
-                        Text(text = "Logout")
-                    }
-                }
-            )
-        },
+//        topBar = {
+//            TopAppBar(
+//                title = {
+//                    Text(
+//                        text = "Pinterest",
+//                        style = MaterialTheme.typography.titleLarge
+//                    )
+//                },
+//                actions = {
+//                    TextButton(onClick = onLogout) {
+//                        Text(text = "Logout")
+//                    }
+//                }
+//            )
+//        },
         bottomBar = {
             BottomAppBar(
                 containerColor = Color.White,
@@ -300,7 +364,8 @@ fun MainHomeScreen(
                     onNavigateBack = { selectedTab = BottomTab.Home },
                     onOpenPinDetail = { pinId ->
                         navController.navigate(Screen.PinDetail.createRoute(pinId))
-                    }
+                    },
+                    onLogout = onLogout
                 )
             }
         }
