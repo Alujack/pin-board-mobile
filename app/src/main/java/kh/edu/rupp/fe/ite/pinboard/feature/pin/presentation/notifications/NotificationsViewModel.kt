@@ -37,7 +37,10 @@ data class NotificationsUiState(
     val notifications: List<Notification> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null
-)
+) {
+    val unreadCount: Int
+        get() = notifications.count { !it.isRead }
+}
 
 @HiltViewModel
 class NotificationsViewModel @Inject constructor(
@@ -65,6 +68,9 @@ class NotificationsViewModel @Inject constructor(
                         
                         val notifications = result.data.data.map { item ->
                             Log.d("NotificationsViewModel", "Processing notification: ${item._id}, type: ${item.type}, content: ${item.content}")
+                            Log.d("NotificationsViewModel", "Raw metadata: ${item.metadata}")
+                            Log.d("NotificationsViewModel", "Metadata pin_id: ${item.metadata?.pin_id}, board_id: ${item.metadata?.board_id}, user_id: ${item.metadata?.user_id}")
+                            
                             Notification(
                                 id = item._id,
                                 type = mapNotificationType(item.type),
@@ -73,12 +79,22 @@ class NotificationsViewModel @Inject constructor(
                                 isRead = item.is_read,
                                 fromUser = item.from_user?.username,
                                 metadata = item.metadata?.let { meta ->
-                                    mapOf(
-                                        "pin_id" to (meta.pin_id ?: ""),
-                                        "board_id" to (meta.board_id ?: ""),
-                                        "user_id" to (meta.user_id ?: ""),
-                                        "comment_id" to (meta.comment_id ?: "")
-                                    ).filterValues { it.isNotEmpty() }
+                                    val metadataMap = mutableMapOf<String, String>()
+                                    // Handle both snake_case (pin_id) and camelCase (pinId) from backend
+                                    (meta.pin_id ?: meta.pinId)?.takeIf { it.isNotEmpty() }?.let { 
+                                        metadataMap["pin_id"] = it 
+                                    }
+                                    (meta.board_id ?: meta.boardId)?.takeIf { it.isNotEmpty() }?.let { 
+                                        metadataMap["board_id"] = it 
+                                    }
+                                    (meta.user_id ?: meta.userId)?.takeIf { it.isNotEmpty() }?.let { 
+                                        metadataMap["user_id"] = it 
+                                    }
+                                    (meta.comment_id ?: meta.commentId)?.takeIf { it.isNotEmpty() }?.let { 
+                                        metadataMap["comment_id"] = it 
+                                    }
+                                    Log.d("NotificationsViewModel", "Processed metadata map: $metadataMap")
+                                    if (metadataMap.isNotEmpty()) metadataMap else null
                                 }
                             )
                         }

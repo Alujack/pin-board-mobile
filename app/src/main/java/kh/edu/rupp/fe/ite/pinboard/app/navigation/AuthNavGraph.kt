@@ -13,6 +13,9 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -229,7 +233,12 @@ fun AuthNavGraph(
 
         composable(Screen.PinDetail.route) { backStackEntry ->
             val pinId = backStackEntry.arguments?.getString("pinId") ?: return@composable
-            val openComments = backStackEntry.savedStateHandle.get<Boolean>("openComments") ?: false
+            val openComments = remember { 
+                backStackEntry.savedStateHandle.get<Boolean>("openComments") ?: false
+            }
+            // Clear the flag after reading
+            backStackEntry.savedStateHandle.remove<Boolean>("openComments")
+            
             PinDetailScreen(
                 pinId = pinId,
                 openCommentsOnLoad = openComments,
@@ -262,12 +271,29 @@ fun AuthNavGraph(
                     navController.navigate(Screen.UserProfile.createRoute(userId))
                 },
                 onNavigateToPinWithComments = { pinId ->
-                    navController.navigate(Screen.PinDetail.createRoute(pinId)) {
-                        // Pass flag to open comments via savedStateHandle
-                        // We'll set it after navigation completes
+                    Log.d("AuthNavGraph", "onNavigateToPinWithComments called with pinId: $pinId")
+                    try {
+                        // Navigate to pin detail first
+                        navController.navigate(Screen.PinDetail.createRoute(pinId)) {
+                            launchSingleTop = true
+                        }
+                        Log.d("AuthNavGraph", "Navigation to PinDetail initiated")
+                        
+                        // Set flag after navigation completes - use the destination's savedStateHandle
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                            kotlinx.coroutines.delay(300)
+                            // Get the destination entry after navigation
+                            val destinationEntry = navController.currentBackStackEntry
+                            if (destinationEntry != null) {
+                                destinationEntry.savedStateHandle.set("openComments", true)
+                                Log.d("AuthNavGraph", "Set openComments flag in destination entry")
+                            } else {
+                                Log.w("AuthNavGraph", "Destination entry not found after navigation")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("AuthNavGraph", "Error navigating to pin with comments", e)
                     }
-                    // Set the flag after navigation
-                    navController.currentBackStackEntry?.savedStateHandle?.set("openComments", true)
                 }
             )
         }
@@ -305,6 +331,16 @@ fun MainHomeScreen(
         )
     }
     var selectedTab by remember { mutableStateOf<BottomTab>(BottomTab.Home) }
+
+    // Get unread notification count
+    val notificationsViewModel: kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.notifications.NotificationsViewModel = hiltViewModel()
+    val notificationsState by notificationsViewModel.uiState.collectAsStateWithLifecycle()
+    val unreadCount = notificationsState.unreadCount
+    
+    // Refresh notifications when screen is created
+    LaunchedEffect(Unit) {
+        notificationsViewModel.refresh()
+    }
 
     // Colors for active/inactive icons
     val activeColor = Color(0xFFE60023)
@@ -349,13 +385,31 @@ fun MainHomeScreen(
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = { selectedTab = BottomTab.Messages }) {
-                        Icon(
-                            Icons.Outlined.Notifications,
-                            contentDescription = "Notification",
-                            tint = if (selectedTab == BottomTab.Messages) activeColor else inactiveColor,
-                            modifier = Modifier.size(28.dp)
-                        )
+                    Box {
+                        IconButton(onClick = { selectedTab = BottomTab.Messages }) {
+                            Icon(
+                                Icons.Outlined.Notifications,
+                                contentDescription = "Notification",
+                                tint = if (selectedTab == BottomTab.Messages) activeColor else inactiveColor,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        // Badge for unread count
+                        if (unreadCount > 0) {
+                            Badge(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 8.dp, y = (-4).dp),
+                                containerColor = Color(0xFFE60023)
+                            ) {
+                                Text(
+                                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                                    fontSize = 10.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = { selectedTab = BottomTab.Profile }) {
@@ -398,7 +452,39 @@ fun MainHomeScreen(
                         navController.navigate(Screen.PinDetail.createRoute(pinId))
                     }
                 )
-                BottomTab.Messages -> NotificationsScreen()
+                BottomTab.Messages -> NotificationsScreen(
+                    onNavigateToPin = { pinId ->
+                        navController.navigate(Screen.PinDetail.createRoute(pinId))
+                    },
+                    onNavigateToUserProfile = { userId ->
+                        navController.navigate(Screen.UserProfile.createRoute(userId))
+                    },
+                    onNavigateToPinWithComments = { pinId ->
+                        Log.d("AuthNavGraph", "onNavigateToPinWithComments called with pinId: $pinId")
+                        try {
+                            // Navigate to pin detail first
+                            navController.navigate(Screen.PinDetail.createRoute(pinId)) {
+                                launchSingleTop = true
+                            }
+                            Log.d("AuthNavGraph", "Navigation to PinDetail initiated")
+                            
+                            // Set flag after navigation completes - use the destination's savedStateHandle
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                kotlinx.coroutines.delay(300)
+                                // Get the destination entry after navigation
+                                val destinationEntry = navController.currentBackStackEntry
+                                if (destinationEntry != null) {
+                                    destinationEntry.savedStateHandle.set("openComments", true)
+                                    Log.d("AuthNavGraph", "Set openComments flag in destination entry")
+                                } else {
+                                    Log.w("AuthNavGraph", "Destination entry not found after navigation")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AuthNavGraph", "Error navigating to pin with comments", e)
+                        }
+                    }
+                )
                 BottomTab.Profile -> ProfileScreen(
                     onNavigateBack = { selectedTab = BottomTab.Home },
                     onOpenPinDetail = { pinId ->

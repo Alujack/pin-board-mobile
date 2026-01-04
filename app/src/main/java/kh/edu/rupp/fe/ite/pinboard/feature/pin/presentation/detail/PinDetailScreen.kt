@@ -449,7 +449,12 @@ private fun PinDetailContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .clickable(enabled = pin.user?._id != null) {
+                    pin.user?._id?.let { userId ->
+                        onNavigateToUserProfile(userId)
+                    }
+                },
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Profile Picture
@@ -620,7 +625,8 @@ private fun CommentsBottomSheet(
     onToggleCommentLike: (String) -> Unit,
     onDeleteComment: (String) -> Unit,
     onAddReply: (String, String) -> Unit,
-    onToggleRepliesExpanded: (String) -> Unit
+    onToggleRepliesExpanded: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     
@@ -737,6 +743,7 @@ private fun CommentsBottomSheet(
                             isRepliesExpanded = comment._id in expandedReplies,
                             onToggleLike = { onToggleCommentLike(comment._id) },
                             onAddReply = { replyText -> onAddReply(replyText, comment._id) },
+                            onNavigateToUserProfile = onNavigateToUserProfile,
                             onDelete = { onDeleteComment(comment._id) },
                             onToggleRepliesExpanded = { onToggleRepliesExpanded(comment._id) },
                             onToggleReplyLike = onToggleCommentLike,
@@ -841,6 +848,7 @@ private fun CommentItemWithReplies(
     onToggleRepliesExpanded: () -> Unit,
     onToggleReplyLike: (String) -> Unit,
     onDeleteReply: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {},
     isReply: Boolean = false
 ) {
     var replyText by remember { mutableStateOf("") }
@@ -1063,6 +1071,7 @@ private fun CommentItemWithReplies(
                         onDelete = { onDeleteReply(reply._id) },
                         onToggleRepliesExpanded = { },
                         onToggleReplyLike = onToggleReplyLike,
+                        onNavigateToUserProfile = onNavigateToUserProfile,
                         onDeleteReply = onDeleteReply,
                         isReply = true
                     )

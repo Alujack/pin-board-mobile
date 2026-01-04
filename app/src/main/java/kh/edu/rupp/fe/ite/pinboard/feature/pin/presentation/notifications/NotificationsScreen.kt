@@ -141,14 +141,18 @@ fun NotificationsScreen(
                             ModernNotificationItem(
                                 notification = notification,
                                 onClick = { 
+                                    android.util.Log.d("NotificationsScreen", "Notification clicked: id=${notification.id}, type=${notification.type}")
+                                    // Mark as read first (non-blocking)
                                     viewModel.markAsRead(notification.id)
                                     // Navigate based on notification type
+                                    android.util.Log.d("NotificationsScreen", "Calling handleNotificationClick")
                                     handleNotificationClick(
                                         notification = notification,
                                         onNavigateToPin = onNavigateToPin,
                                         onNavigateToUserProfile = onNavigateToUserProfile,
                                         onNavigateToPinWithComments = onNavigateToPinWithComments
                                     )
+                                    android.util.Log.d("NotificationsScreen", "handleNotificationClick completed")
                                 }
                             )
                     }
@@ -164,49 +168,74 @@ private fun handleNotificationClick(
     onNavigateToUserProfile: (String) -> Unit,
     onNavigateToPinWithComments: (String) -> Unit
 ) {
-    val metadata = notification.metadata ?: return
+    android.util.Log.d("NotificationsScreen", "=== handleNotificationClick START ===")
+    android.util.Log.d("NotificationsScreen", "Notification type: ${notification.type}")
+    android.util.Log.d("NotificationsScreen", "Metadata: ${notification.metadata}")
+    android.util.Log.d("NotificationsScreen", "Metadata keys: ${notification.metadata?.keys}")
+    android.util.Log.d("NotificationsScreen", "From user: ${notification.fromUser}")
     
-    when (notification.type) {
-        NotificationType.COMMENT -> {
-            // Navigate to pin detail and open comments
-            metadata["pin_id"]?.let { pinId ->
-                if (pinId.isNotEmpty()) {
+    val metadata = notification.metadata
+    
+    try {
+        when (notification.type) {
+            NotificationType.COMMENT -> {
+                // Navigate to pin detail and open comments
+                val pinId = metadata?.get("pin_id")
+                android.util.Log.d("NotificationsScreen", "COMMENT - pinId from metadata: $pinId")
+                android.util.Log.d("NotificationsScreen", "COMMENT - pinId isNullOrEmpty: ${pinId.isNullOrEmpty()}")
+                
+                if (!pinId.isNullOrEmpty() && pinId.isNotBlank()) {
+                    android.util.Log.d("NotificationsScreen", "COMMENT - Calling onNavigateToPinWithComments with: $pinId")
                     onNavigateToPinWithComments(pinId)
+                    android.util.Log.d("NotificationsScreen", "COMMENT - Navigation callback executed")
+                } else {
+                    android.util.Log.e("NotificationsScreen", "COMMENT - No valid pin_id found. Metadata: $metadata")
                 }
             }
-        }
-        NotificationType.LIKE, NotificationType.SAVE -> {
-            // Navigate to pin detail
-            metadata["pin_id"]?.let { pinId ->
-                if (pinId.isNotEmpty()) {
+            NotificationType.LIKE, NotificationType.SAVE -> {
+                // Navigate to pin detail
+                val pinId = metadata?.get("pin_id")
+                android.util.Log.d("NotificationsScreen", "LIKE/SAVE - pinId from metadata: $pinId")
+                
+                if (!pinId.isNullOrEmpty() && pinId.isNotBlank()) {
+                    android.util.Log.d("NotificationsScreen", "LIKE/SAVE - Calling onNavigateToPin with: $pinId")
                     onNavigateToPin(pinId)
+                    android.util.Log.d("NotificationsScreen", "LIKE/SAVE - Navigation callback executed")
+                } else {
+                    android.util.Log.e("NotificationsScreen", "LIKE/SAVE - No valid pin_id found. Metadata: $metadata")
                 }
             }
-        }
-        NotificationType.FOLLOW -> {
-            // Navigate to user profile
-            notification.fromUser?.let { username ->
-                // We need userId, try to get from metadata
-                metadata["user_id"]?.let { userId ->
-                    if (userId.isNotEmpty()) {
-                        onNavigateToUserProfile(userId)
-                    }
-                }
-            } ?: metadata["user_id"]?.let { userId ->
-                if (userId.isNotEmpty()) {
+            NotificationType.FOLLOW -> {
+                // Navigate to user profile
+                // Try metadata first, then fallback to from_user if available
+                var userId = metadata?.get("user_id")
+                android.util.Log.d("NotificationsScreen", "FOLLOW - userId from metadata: $userId")
+                
+                // If no userId in metadata, try to get from fromUser (though we'd need the actual ID)
+                if (userId.isNullOrEmpty() || userId.isBlank()) {
+                    android.util.Log.w("NotificationsScreen", "FOLLOW - No user_id in metadata, cannot navigate")
+                } else {
+                    android.util.Log.d("NotificationsScreen", "FOLLOW - Calling onNavigateToUserProfile with: $userId")
                     onNavigateToUserProfile(userId)
+                    android.util.Log.d("NotificationsScreen", "FOLLOW - Navigation callback executed")
                 }
             }
-        }
-        NotificationType.SYSTEM -> {
-            // Try to navigate to pin if available
-            metadata["pin_id"]?.let { pinId ->
-                if (pinId.isNotEmpty()) {
+            NotificationType.SYSTEM -> {
+                // Try to navigate to pin if available
+                val pinId = metadata?.get("pin_id")
+                if (!pinId.isNullOrEmpty() && pinId.isNotBlank()) {
+                    android.util.Log.d("NotificationsScreen", "SYSTEM - Navigating to pin: $pinId")
                     onNavigateToPin(pinId)
+                } else {
+                    android.util.Log.w("NotificationsScreen", "SYSTEM - No pin_id found")
                 }
             }
         }
+    } catch (e: Exception) {
+        android.util.Log.e("NotificationsScreen", "Error in handleNotificationClick", e)
     }
+    
+    android.util.Log.d("NotificationsScreen", "=== handleNotificationClick END ===")
 }
 
 @Composable
