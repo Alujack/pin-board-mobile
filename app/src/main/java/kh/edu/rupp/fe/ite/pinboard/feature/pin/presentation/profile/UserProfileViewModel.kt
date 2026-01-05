@@ -1,5 +1,6 @@
 package kh.edu.rupp.fe.ite.pinboard.feature.pin.presentation.profile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +27,8 @@ data class UserProfileState(
     val isLoading: Boolean = false,
     val isLoadingPins: Boolean = false,
     val isFollowLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val followErrorMessage: String? = null
 )
 
 @HiltViewModel
@@ -101,50 +103,96 @@ class UserProfileViewModel @Inject constructor(
 
     fun followUser(userId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isFollowLoading = true) }
+            _state.update { it.copy(isFollowLoading = true, followErrorMessage = null) }
             try {
+                Log.d("UserProfileViewModel", "Attempting to follow user: $userId")
                 val response = authApi.followUser(
                     kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.FollowUserRequest(userId)
                 )
+                Log.d("UserProfileViewModel", "Follow response - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
+                
                 if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    Log.d("UserProfileViewModel", "Follow successful - response: $responseBody")
                     _state.update {
                         it.copy(
                             isFollowing = true,
                             isFollowLoading = false,
-                            followersCount = it.followersCount + 1
+                            followersCount = it.followersCount + 1,
+                            followErrorMessage = null
                         )
                     }
                 } else {
-                    _state.update { it.copy(isFollowLoading = false) }
+                    val errorBody = response.errorBody()?.string()
+                    val responseBody = response.body()
+                    val errorMessage = responseBody?.message ?: errorBody ?: "Failed to follow user: ${response.code()}"
+                    Log.e("UserProfileViewModel", "Follow failed - code: ${response.code()}, errorBody: $errorBody, responseBody: $responseBody")
+                    _state.update { 
+                        it.copy(
+                            isFollowLoading = false,
+                            followErrorMessage = errorMessage
+                        ) 
+                    }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(isFollowLoading = false) }
+                Log.e("UserProfileViewModel", "Exception while following user", e)
+                _state.update { 
+                    it.copy(
+                        isFollowLoading = false,
+                        followErrorMessage = "Error following user: ${e.message}"
+                    ) 
+                }
             }
         }
     }
 
     fun unfollowUser(userId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isFollowLoading = true) }
+            _state.update { it.copy(isFollowLoading = true, followErrorMessage = null) }
             try {
+                Log.d("UserProfileViewModel", "Attempting to unfollow user: $userId")
                 val response = authApi.unfollowUser(
                     kh.edu.rupp.fe.ite.pinboard.feature.auth.data.remote.FollowUserRequest(userId)
                 )
+                Log.d("UserProfileViewModel", "Unfollow response - isSuccessful: ${response.isSuccessful}, code: ${response.code()}")
+                
                 if (response.isSuccessful) {
+                    val responseBody = response.body()
+                    Log.d("UserProfileViewModel", "Unfollow successful - response: $responseBody")
                     _state.update {
                         it.copy(
                             isFollowing = false,
                             isFollowLoading = false,
-                            followersCount = maxOf(0, it.followersCount - 1)
+                            followersCount = maxOf(0, it.followersCount - 1),
+                            followErrorMessage = null
                         )
                     }
                 } else {
-                    _state.update { it.copy(isFollowLoading = false) }
+                    val errorBody = response.errorBody()?.string()
+                    val responseBody = response.body()
+                    val errorMessage = responseBody?.message ?: errorBody ?: "Failed to unfollow user: ${response.code()}"
+                    Log.e("UserProfileViewModel", "Unfollow failed - code: ${response.code()}, errorBody: $errorBody, responseBody: $responseBody")
+                    _state.update { 
+                        it.copy(
+                            isFollowLoading = false,
+                            followErrorMessage = errorMessage
+                        ) 
+                    }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(isFollowLoading = false) }
+                Log.e("UserProfileViewModel", "Exception while unfollowing user", e)
+                _state.update { 
+                    it.copy(
+                        isFollowLoading = false,
+                        followErrorMessage = "Error unfollowing user: ${e.message}"
+                    ) 
+                }
             }
         }
+    }
+
+    fun clearFollowError() {
+        _state.update { it.copy(followErrorMessage = null) }
     }
 }
 

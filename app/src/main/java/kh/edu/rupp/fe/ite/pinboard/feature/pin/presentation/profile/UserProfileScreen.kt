@@ -61,83 +61,27 @@ fun UserProfileScreen(
             )
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(Color.White)
         ) {
-            when {
-                state.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color(0xFFE60023))
-                    }
-                }
-                state.errorMessage != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Error,
-                                contentDescription = null,
-                                tint = Color(0xFFD32F2F),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Text(
-                                text = state.errorMessage ?: "Error loading profile",
-                                color = Color(0xFFD32F2F),
-                                fontSize = 16.sp
-                            )
-                            Button(
-                                onClick = {
-                                    viewModel.loadUserProfile(userId)
-                                    viewModel.loadUserPins(userId)
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFE60023)
-                                )
-                            ) {
-                                Text("Retry")
-                            }
-                        }
-                    }
-                }
-                else -> {
-                    // Profile Header
-                    UserProfileHeader(
-                        username = state.username,
-                        followersCount = state.followersCount,
-                        followingCount = state.followingCount,
-                        pinsCount = state.pinsCount,
-                        bio = state.bio,
-                        profilePicture = state.profilePicture,
-                        isFollowing = state.isFollowing,
-                        isFollowLoading = state.isFollowLoading,
-                        onFollowClick = {
-                            if (state.isFollowing) {
-                                viewModel.unfollowUser(userId)
-                            } else {
-                                viewModel.followUser(userId)
-                            }
-                        }
-                    )
-
-                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
-
-                    // Pins Grid
-                    if (state.pins.isEmpty() && !state.isLoadingPins) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when {
+                    state.isLoading -> {
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color(0xFFE60023))
+                        }
+                    }
+                    state.errorMessage != null -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
@@ -145,37 +89,132 @@ fun UserProfileScreen(
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Icon(
-                                    Icons.Outlined.Image,
+                                    Icons.Default.Error,
                                     contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = Color(0xFF9E9E9E)
+                                    tint = Color(0xFFD32F2F),
+                                    modifier = Modifier.size(48.dp)
                                 )
                                 Text(
-                                    text = "No pins yet",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF757575)
+                                    text = state.errorMessage ?: "Error loading profile",
+                                    color = Color(0xFFD32F2F),
+                                    fontSize = 16.sp
                                 )
+                                Button(
+                                    onClick = {
+                                        viewModel.loadUserProfile(userId)
+                                        viewModel.loadUserPins(userId)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFE60023)
+                                    )
+                                ) {
+                                    Text("Retry")
+                                }
                             }
                         }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            contentPadding = PaddingValues(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(state.pins) { pin ->
-                                PinItem(
-                                    pin = pin,
-                                    onClick = {
-                                        pin._id?.let { onOpenPinDetail(it) }
-                                    }
-                                )
+                    }
+                    else -> {
+                        // Profile Header
+                        UserProfileHeader(
+                            username = state.username,
+                            followersCount = state.followersCount,
+                            followingCount = state.followingCount,
+                            pinsCount = state.pinsCount,
+                            bio = state.bio,
+                            profilePicture = state.profilePicture,
+                            isFollowing = state.isFollowing,
+                            isFollowLoading = state.isFollowLoading,
+                            onFollowClick = {
+                                if (state.isFollowing) {
+                                    viewModel.unfollowUser(userId)
+                                } else {
+                                    viewModel.followUser(userId)
+                                }
+                            }
+                        )
+
+                        Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+
+                        // Pins Grid
+                        if (state.pins.isEmpty() && !state.isLoadingPins) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Image,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = Color(0xFF9E9E9E)
+                                    )
+                                    Text(
+                                        text = "No pins yet",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF757575)
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                contentPadding = PaddingValues(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(state.pins) { pin ->
+                                    PinItem(
+                                        pin = pin,
+                                        onClick = {
+                                            pin._id?.let { onOpenPinDetail(it) }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
+            }
+
+            // Follow/Unfollow Error Snackbar
+            state.followErrorMessage?.let { errorMsg ->
+                ErrorSnackbar(
+                    message = errorMsg,
+                    onDismiss = { viewModel.clearFollowError() },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ErrorSnackbar(message: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFD32F2F))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = message,
+                color = Color(0xFFD32F2F),
+                modifier = Modifier.weight(1f),
+                fontSize = 14.sp
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color(0xFFD32F2F))
             }
         }
     }
