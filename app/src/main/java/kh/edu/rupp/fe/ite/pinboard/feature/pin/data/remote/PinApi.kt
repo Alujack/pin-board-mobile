@@ -29,6 +29,9 @@ interface PinApi {
     @GET("api/pins/detail/{id}")
     suspend fun getPinById(@Path("id") id: String): SinglePinResponse
 
+    @GET("api/pins/{id}/related")
+    suspend fun getRelatedPins(@Path("id") id: String): PinResponse
+
     @POST("api/pins/{id}/save")
     suspend fun savePin(@Path("id") id: String): Response<Unit>
 
