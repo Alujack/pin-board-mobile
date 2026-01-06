@@ -23,9 +23,10 @@ android {
         buildConfigField(
             "String",
             "API_BASE_URL",
-//            "\"https://pin-board-backend-lrrlys6fa-alujacks-projects.vercel.app/\""
-            "\"http://192.168.1.54:3000/\""
+            "\"https://pin-board-backend-lqlfyck43-alujacks-projects.vercel.app/\""
+//            "\"http://192.168.1.54:3000/\""
 //            "\"http://10.0.2.2:3000/\""
+//            "https://pin-board-backend-lrrlys6fa-alujacks-projects.vercel.app"
         )
     }
 
