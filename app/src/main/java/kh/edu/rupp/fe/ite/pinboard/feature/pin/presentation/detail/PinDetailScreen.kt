@@ -38,15 +38,25 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PinDetailScreen(
+    pinId: String? = null,
+    openCommentsOnLoad: Boolean = false,
     onNavigateBack: () -> Unit,
     onNavigateToComments: (String) -> Unit = {},
     onNavigateToPin: (String) -> Unit = {},
+    onNavigateToUserProfile: (String) -> Unit = {},
     viewModel: PinDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var showCommentsSheet by remember { mutableStateOf(false) }
+    var showCommentsSheet by remember { mutableStateOf(openCommentsOnLoad) }
     var commentText by remember { mutableStateOf("") }
+    
+    // Open comments if requested
+    LaunchedEffect(openCommentsOnLoad) {
+        if (openCommentsOnLoad) {
+            showCommentsSheet = true
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         when {
@@ -74,7 +84,8 @@ fun PinDetailScreen(
                     onDownload = { viewModel.onDownloadClicked() },
                     onFollow = { viewModel.onFollowClicked() },
                     onCommentClick = { showCommentsSheet = true },
-                    onRelatedPinClick = onNavigateToPin
+                    onRelatedPinClick = onNavigateToPin,
+                    onNavigateToUserProfile = onNavigateToUserProfile
                 )
             }
             uiState.errorMessage != null -> {
@@ -178,7 +189,8 @@ private fun PinDetailContent(
     onDownload: () -> Unit,
     onFollow: () -> Unit,
     onCommentClick: () -> Unit,
-    onRelatedPinClick: (String) -> Unit
+    onRelatedPinClick: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -437,7 +449,12 @@ private fun PinDetailContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .clickable(enabled = pin.user?._id != null) {
+                    pin.user?._id?.let { userId ->
+                        onNavigateToUserProfile(userId)
+                    }
+                },
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Profile Picture
@@ -608,7 +625,8 @@ private fun CommentsBottomSheet(
     onToggleCommentLike: (String) -> Unit,
     onDeleteComment: (String) -> Unit,
     onAddReply: (String, String) -> Unit,
-    onToggleRepliesExpanded: (String) -> Unit
+    onToggleRepliesExpanded: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     
@@ -725,6 +743,7 @@ private fun CommentsBottomSheet(
                             isRepliesExpanded = comment._id in expandedReplies,
                             onToggleLike = { onToggleCommentLike(comment._id) },
                             onAddReply = { replyText -> onAddReply(replyText, comment._id) },
+                            onNavigateToUserProfile = onNavigateToUserProfile,
                             onDelete = { onDeleteComment(comment._id) },
                             onToggleRepliesExpanded = { onToggleRepliesExpanded(comment._id) },
                             onToggleReplyLike = onToggleCommentLike,
@@ -829,6 +848,7 @@ private fun CommentItemWithReplies(
     onToggleRepliesExpanded: () -> Unit,
     onToggleReplyLike: (String) -> Unit,
     onDeleteReply: (String) -> Unit,
+    onNavigateToUserProfile: (String) -> Unit = {},
     isReply: Boolean = false
 ) {
     var replyText by remember { mutableStateOf("") }
@@ -1051,6 +1071,7 @@ private fun CommentItemWithReplies(
                         onDelete = { onDeleteReply(reply._id) },
                         onToggleRepliesExpanded = { },
                         onToggleReplyLike = onToggleReplyLike,
+                        onNavigateToUserProfile = onNavigateToUserProfile,
                         onDeleteReply = onDeleteReply,
                         isReply = true
                     )

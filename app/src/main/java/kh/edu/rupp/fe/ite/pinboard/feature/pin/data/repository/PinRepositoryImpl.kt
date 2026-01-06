@@ -253,6 +253,24 @@ constructor(
         }
     }
 
+    override suspend fun getRelatedPins(pinId: String): PinResult<List<Pin>> {
+        return try {
+            val response = api.getRelatedPins(pinId)
+
+            if (response.success) {
+                PinResult.Success(response.data)
+            } else {
+                PinResult.Error(response.message)
+            }
+        } catch (e: HttpException) {
+            PinResult.Error("Network error: ${e.code()} ${e.message()}")
+        } catch (e: JsonSyntaxException) {
+            PinResult.Error("Invalid response format: ${e.message}")
+        } catch (e: Exception) {
+            PinResult.Error(e.message ?: "Failed to fetch related pins")
+        }
+    }
+
     override suspend fun getBoardById(boardId: String): PinResult<Board> {
         return try {
             val board = api.getBoardById(boardId)
