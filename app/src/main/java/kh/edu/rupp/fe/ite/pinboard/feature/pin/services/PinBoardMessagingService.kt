@@ -1,12 +1,16 @@
 package kh.edu.rupp.fe.ite.pinboard.feature.pin.services
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kh.edu.rupp.fe.ite.pinboard.MainActivity
@@ -17,15 +21,18 @@ class PinBoardMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
+        Log.d("PinBoardMessagingService", "🔄 New FCM token received")
         // Send token to your server
         sendTokenToServer(token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
+        Log.d("PinBoardMessagingService", "📨 FCM message received")
 
         // Handle notification payload
         message.notification?.let { notification ->
+            Log.d("PinBoardMessagingService", "📬 Notification payload: ${notification.title}")
             showNotification(
                 title = notification.title ?: "PinBoard",
                 body = notification.body ?: "",
@@ -35,25 +42,42 @@ class PinBoardMessagingService : FirebaseMessagingService() {
 
         // Handle data payload
         if (message.data.isNotEmpty()) {
+            Log.d("PinBoardMessagingService", "📦 Data payload: ${message.data}")
             handleDataPayload(message.data)
         }
     }
 
     private fun showNotification(title: String, body: String, data: Map<String, String>) {
+        // Check notification permission (required for Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.w("PinBoardMessagingService", "❌ Notification permission not granted, cannot show notification")
+                return
+            }
+        }
+        
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create notification channel for Android O and above
+        // Create notification channel for Android O and above (if not already created)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "PinBoard Notifications",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notifications for likes, comments, and follows"
-                enableLights(true)
-                enableVibration(true)
+            val existingChannel = notificationManager.getNotificationChannel(CHANNEL_ID)
+            if (existingChannel == null) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    "PinBoard Notifications",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Notifications for likes, comments, and follows"
+                    enableLights(true)
+                    enableVibration(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+                Log.d("PinBoardMessagingService", "✅ Notification channel created")
             }
-            notificationManager.createNotificationChannel(channel)
         }
 
         // Create intent for notification tap
@@ -83,7 +107,9 @@ class PinBoardMessagingService : FirebaseMessagingService() {
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .build()
 
-        notificationManager.notify(Random.nextInt(), notification)
+        val notificationId = Random.nextInt()
+        notificationManager.notify(notificationId, notification)
+        Log.d("PinBoardMessagingService", "✅ Notification shown with ID: $notificationId")
     }
 
     private fun handleDataPayload(data: Map<String, String>) {
